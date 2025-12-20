@@ -1,0 +1,16 @@
+{
+  "sqltools.connections": [
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "postgres",
+      "database": "quanda",
+      "username": "postgres",
+      "password": "new_password"
+    }
+  ],
+  "postman.settings.dotenv-detection-notification-visibility": false
+}
