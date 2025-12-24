@@ -84,6 +84,13 @@ export function Header({
     let href: string | undefined;
 
     switch (type) {
+      case "space_joined": {
+        const spaceId = payload?.spaceId;
+        const name = payload?.name;
+        title = name ? `You joined ${name}` : "You joined a space";
+        href = spaceId ? `/space/${spaceId}` : undefined;
+        break;
+      }
       case "post_upvotes_milestone": {
         const votes = payload?.votes;
         const postId = payload?.postId;
