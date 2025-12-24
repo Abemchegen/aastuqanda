@@ -34,7 +34,7 @@ export function Header({
   const [notificationsFetched, setNotificationsFetched] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { fetchNotifications } = useAPI();
+  const { fetchNotifications, readNotification } = useAPI();
 
   useEffect(() => {
     setMounted(true);
@@ -74,6 +74,55 @@ export function Header({
   }, [mounted, resolvedTheme, theme]);
 
   const toggleTheme = () => setTheme(isDark ? "light" : "dark");
+
+  // Friendly notification formatter
+  const formatNotification = (n: any) => {
+    const type = n?.type as string | undefined;
+    const payload = n?.payload || {};
+    let title: string = n?.title || "Notification";
+    let message: string | undefined;
+    let href: string | undefined;
+
+    switch (type) {
+      case "post_upvotes_milestone": {
+        const votes = payload?.votes;
+        const postId = payload?.postId;
+        const postTitle = payload?.title;
+        title = votes
+          ? `Your post reached ${votes} upvotes`
+          : "Post upvotes milestone";
+        message = postTitle ? `“${postTitle}”` : undefined;
+        href = postId ? `/post/${postId}` : undefined;
+        break;
+      }
+      case "post_comments_milestone": {
+        const comments = payload?.comments;
+        const postId = payload?.postId;
+        const postTitle = payload?.title;
+        title = comments
+          ? `Your post got ${comments} comments`
+          : "Post comments milestone";
+        message = postTitle ? `“${postTitle}”` : undefined;
+        href = postId ? `/post/${postId}` : undefined;
+        break;
+      }
+      case "space_members_milestone": {
+        const members = payload?.members;
+        const slug = payload?.slug;
+        title = members
+          ? `Your space reached ${members} members`
+          : "Space members milestone";
+        message = slug ? `Space: ${slug}` : undefined;
+        href = slug ? `/space/${slug}` : undefined;
+        break;
+      }
+      default: {
+        title = n?.title || type || "Notification";
+        message = n?.message;
+      }
+    }
+    return { title, message, href };
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -126,7 +175,7 @@ export function Header({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                {notifications.length > 0 && (
+                {notifications.some((n) => !n.read) && (
                   <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
                 )}
               </Button>
@@ -143,26 +192,54 @@ export function Header({
                   No notifications
                 </DropdownMenuItem>
               ) : (
-                notifications.map((n) => (
-                  <DropdownMenuItem
-                    key={n.id ?? n._id ?? n.title}
-                    className="flex flex-col items-start gap-1"
-                  >
-                    <span className="text-sm font-medium">
-                      {n.title || n.type || "Notification"}
-                    </span>
-                    {n.message && (
-                      <span className="text-xs text-muted-foreground">
-                        {n.message}
+                notifications.map((n) => {
+                  const f = formatNotification(n);
+                  const content = (
+                    <div className="flex w-full flex-col items-start gap-1">
+                      <span
+                        className={`text-sm font-medium ${
+                          n.read ? "" : "text-primary"
+                        }`}
+                      >
+                        {f.title}
                       </span>
-                    )}
-                    {n.createdAt && (
-                      <span className="text-[11px] text-muted-foreground">
-                        {new Date(n.createdAt).toLocaleString()}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                ))
+                      {f.message && (
+                        <span className="text-xs text-muted-foreground">
+                          {f.message}
+                        </span>
+                      )}
+                      {n.createdAt && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  );
+                  return (
+                    <DropdownMenuItem
+                      key={n.id ?? n._id ?? n.title}
+                      className="flex flex-col items-start gap-1"
+                      onSelect={(e) => {
+                        // Allow navigation when a destination exists
+                        if (f.href) {
+                          e.preventDefault();
+                          // Mark as read if possible
+                          const token =
+                            typeof window !== "undefined"
+                              ? localStorage.getItem("campusloop_access_token")
+                              : null;
+                          if (token && n.id) {
+                            readNotification(n.id, token).catch(() => {});
+                          }
+                          setNotificationsOpen(false);
+                          navigate(f.href);
+                        }
+                      }}
+                    >
+                      {content}
+                    </DropdownMenuItem>
+                  );
+                })
               )}
             </DropdownMenuContent>
           </DropdownMenu>

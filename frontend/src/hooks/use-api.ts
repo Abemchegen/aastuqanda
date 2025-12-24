@@ -29,8 +29,13 @@ import {
   getMyPosts,
   getMyComments,
   getMySavedPosts,
+  getUserPostsByUsername,
+  getUserCommentsByUsername,
   updatePost,
   updateComment,
+  uploadSpaceImage,
+  updateSpaceImage,
+  deleteSpaceImage,
 } from  "../api/api"
 
 export const useAPI = () => {
@@ -56,15 +61,22 @@ export const useAPI = () => {
     fetchSpaces: () => call(getSpaces),
     fetchSpaceById: (id: string) => call(getSpaceById, id),
     createSpaceRequest: (
-      data: { name: string; description: string },
+      data: { name: string; description: string; image?: string },
       token: string
     ) => call(requestNewSpace, data, token),
+    uploadSpaceImage: (file: File, token: string) => call(uploadSpaceImage, file, token),
+    setSpaceImage: (spaceId: string, image: string, token: string) =>
+      call(updateSpaceImage, spaceId, image, token),
+    removeSpaceImage: (spaceId: string, token: string) =>
+      call(deleteSpaceImage, spaceId, token),
     joinSpace: (id: string, token: string) => call(joinSpace, id, token),
     leaveSpace: (id: string, token: string) => call(leaveSpace, id, token),
     fetchMySpaces: (token: string) => call(getMySpaces, token),
     fetchMyPosts: (token: string) => call(getMyPosts, token),
     fetchMyComments: (token: string) => call(getMyComments, token),
     fetchMySavedPosts: (token: string) => call(getMySavedPosts, token),
+    fetchUserPostsPublic: (username: string) => call(getUserPostsByUsername, username),
+    fetchUserCommentsPublic: (username: string) => call(getUserCommentsByUsername, username),
 
     // Posts
     fetchPosts: () => call(getPosts),

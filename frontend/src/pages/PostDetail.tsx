@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   Bookmark,
   Share2,
   Send,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import ReactMarkdown from "react-markdown";
+import { uploadPostImages } from "@/api/api";
 // import { posts } from "@/data/mockData";
 // import { getCommentsForPost } from "@/data/mockComments";
 import { Comment } from "@/types";
@@ -27,6 +30,36 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useAPI } from "@/hooks/use-api";
+
+// Detect standard deletion placeholder texts for posts/comments
+function isDeletedText(text?: string): boolean {
+  if (!text) return false;
+  return (
+    text.startsWith("This post was deleted by") ||
+    text.startsWith("This comment was deleted by")
+  );
+}
+
+// Extract image URLs from Markdown content
+function extractImageUrlsFromMarkdown(md: string | undefined): string[] {
+  if (!md) return [];
+  const urls: string[] = [];
+  const mdImg = /!\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = mdImg.exec(md)) !== null) urls.push(m[1]);
+  const htmlImg = /<img[^>]*src=\"([^\"]+)\"[^>]*>/gi;
+  while ((m = htmlImg.exec(md)) !== null) urls.push(m[1]);
+  return urls;
+}
+
+// Remove image markdown/tags from Markdown content
+function stripImagesFromMarkdown(md: string | undefined): string {
+  if (!md) return "";
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/<img[^>]*>/gi, "")
+    .trim();
+}
 
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -60,8 +93,7 @@ function CommentCard({
   const baseVotes = (comment.votes as number) || 0;
   const currentVotes =
     baseVotes + (vote === "up" ? 1 : vote === "down" ? -1 : 0);
-  const isDeleted =
-    comment.content === "This comment was deleted by the owner.";
+  const isDeleted = isDeletedText(comment.content);
 
   return (
     <div
@@ -70,7 +102,9 @@ function CommentCard({
       <div className="py-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
           <span className="font-medium text-foreground">
-            {comment.author?.username || comment.authorId}
+            {isDeleted
+              ? "deleted user"
+              : comment.author?.username || comment.authorId}
           </span>
           <span>•</span>
           <span>{formatTimeAgo(comment.createdAt)}</span>
@@ -220,6 +254,13 @@ export default function PostDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [editImages, setEditImages] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+  const [editExistingImageUrls, setEditExistingImageUrls] = useState<string[]>(
+    []
+  );
+  const [isDraggingEdit, setIsDraggingEdit] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement | null>(null);
   const token =
     typeof window !== "undefined"
       ? localStorage.getItem("campusloop_access_token") || ""
@@ -305,7 +346,7 @@ export default function PostDetail() {
     }
   };
 
-  const isPostDeleted = () => post?.content === POST_DELETED_PLACEHOLDER;
+  const isPostDeleted = () => isDeletedText(post?.content);
 
   const handleEditPost = async () => {
     if (!user || !token) {
@@ -318,8 +359,60 @@ export default function PostDetail() {
     }
     if (!postId || !post) return;
     setEditTitle(post.title || "");
-    setEditContent(post.content || "");
+    // Strip images from textarea but keep them separately
+    setEditExistingImageUrls(extractImageUrlsFromMarkdown(post.content || ""));
+    setEditContent(stripImagesFromMarkdown(post.content || ""));
     setEditOpen(true);
+  };
+
+  const handleEditImagesSelected = (files: FileList | null) => {
+    if (!files) return;
+    processEditNewFiles(Array.from(files));
+  };
+
+  const processEditNewFiles = (files: File[]) => {
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    const merged = [...editImages, ...imageFiles].slice(0, 6);
+    setEditImages(merged);
+    setEditImagePreviews(merged.map((f) => URL.createObjectURL(f)));
+  };
+
+  const handleEditDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingEdit(false);
+    const dt = e.dataTransfer;
+    const files: File[] = [];
+    if (dt.items) {
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind === "file") {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    } else if (dt.files) {
+      for (let i = 0; i < dt.files.length; i++) files.push(dt.files[i]);
+    }
+    if (files.length) processEditNewFiles(files);
+  };
+  const handleEditDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingEdit(true);
+  };
+  const handleEditDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingEdit(false);
+  };
+
+  const removeExistingImage = (url: string) => {
+    setEditExistingImageUrls((prev) => prev.filter((u) => u !== url));
+  };
+  const removeNewImageAt = (index: number) => {
+    setEditImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setEditImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleEditComment = async (commentId: string, content: string) => {
@@ -461,7 +554,7 @@ export default function PostDetail() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <span className="font-medium text-space-prefix">
-            {/* loop/{post.spaceSlug} */}
+            {post?.spaceSlug}
           </span>
         </div>
       </header>
@@ -520,7 +613,10 @@ export default function PostDetail() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                       <span>
-                        Posted by {post.author?.username || post.authorId}
+                        Posted by{" "}
+                        {isPostDeleted()
+                          ? "deleted user"
+                          : post.author?.username || post.authorId}
                       </span>
                       <span>•</span>
                       <span>
@@ -533,15 +629,17 @@ export default function PostDetail() {
                     <h1 className="font-display text-2xl font-bold mb-4">
                       {post.title}
                     </h1>
-                    <p
-                      className={cn(
-                        "text-foreground leading-relaxed mb-4",
-                        post.content === POST_DELETED_PLACEHOLDER &&
-                          "text-muted-foreground italic"
-                      )}
-                    >
-                      {post.content}
-                    </p>
+                    {isPostDeleted() ? (
+                      <p className={cn("text-muted-foreground italic mb-4")}>
+                        {post.content}
+                      </p>
+                    ) : (
+                      <div className="prose prose-sm max-w-none text-foreground mb-4">
+                        <ReactMarkdown skipHtml>
+                          {post.content || ""}
+                        </ReactMarkdown>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 pt-4 border-t">
                       <Button variant="ghost" size="sm">
@@ -550,7 +648,7 @@ export default function PostDetail() {
                       </Button>
                       {user &&
                         post.authorId === user.id &&
-                        post.content !== POST_DELETED_PLACEHOLDER && (
+                        !isPostDeleted() && (
                           <>
                             <Button
                               variant="ghost"
@@ -568,7 +666,7 @@ export default function PostDetail() {
                             </Button>
                           </>
                         )}
-                      {post.content !== POST_DELETED_PLACEHOLDER && (
+                      {!isPostDeleted() && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -690,11 +788,92 @@ export default function PostDetail() {
               onChange={(e) => setEditContent(e.target.value)}
               rows={5}
             />
+            {/* Preview removed per request */}
+            {/* Images */}
+            <div>
+              {/* Hidden file input for click-to-select */}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                ref={editFileInputRef}
+                onChange={(e) => handleEditImagesSelected(e.target.files)}
+                style={{ display: "none" }}
+              />
+              {/* Drag & drop zone for edit */}
+              <div
+                className={
+                  "mt-2 p-4 rounded border-2 border-dashed text-sm " +
+                  (isDraggingEdit
+                    ? "border-primary bg-primary/5"
+                    : "border-muted")
+                }
+                onClick={() => editFileInputRef.current?.click()}
+                onDrop={handleEditDrop}
+                onDragOver={handleEditDragOver}
+                onDragEnter={handleEditDragOver}
+                onDragLeave={handleEditDragLeave}
+              >
+                Drag & drop images here, or click to select.
+              </div>
+              <span className="text-xs text-muted-foreground block mt-1">
+                Up to 6 images
+              </span>
+              {/* Existing images */}
+              {editExistingImageUrls.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {editExistingImageUrls.map((src, i) => (
+                    <div key={`existing-${i}`} className="relative">
+                      <img
+                        src={src}
+                        alt={`existing-${i}`}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-background/70"
+                        onClick={() => removeExistingImage(src)}
+                        aria-label="Remove image"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {editImagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {editImagePreviews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img
+                        src={src}
+                        alt={`preview-${i}`}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-background/70"
+                        onClick={() => removeNewImageAt(i)}
+                        aria-label="Remove image"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 className="flex-1"
                 variant="outline"
-                onClick={() => setEditOpen(false)}
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditImages([]);
+                  setEditImagePreviews([]);
+                }}
                 disabled={editSaving}
               >
                 Cancel
@@ -718,14 +897,41 @@ export default function PostDetail() {
                   }
                   try {
                     setEditSaving(true);
+                    // Compose content without image markdown in the textarea
+                    let contentWithImages = editContent;
+                    // Add existing image URLs back as markdown
+                    if (editExistingImageUrls.length > 0) {
+                      contentWithImages += editExistingImageUrls
+                        .map((u) => `\n![image](${u})`)
+                        .join("");
+                    }
+                    if (editImages.length > 0) {
+                      try {
+                        const res = await uploadPostImages(editImages, token);
+                        const urls: string[] = Array.isArray(res?.urls)
+                          ? res.urls
+                          : [];
+                        if (urls.length > 0) {
+                          const md = urls
+                            .map((u) => `\n![image](${u})`)
+                            .join("");
+                          contentWithImages += md;
+                        }
+                      } catch (_) {
+                        // continue without images on upload error
+                      }
+                    }
                     const updated = await editPost(
                       postId,
-                      { title: editTitle.trim(), content: editContent },
+                      { title: editTitle.trim(), content: contentWithImages },
                       token
                     );
                     setPost(updated);
                     toast({ title: "Post updated" });
                     setEditOpen(false);
+                    setEditImages([]);
+                    setEditImagePreviews([]);
+                    setEditExistingImageUrls([]);
                   } catch (_) {
                     toast({
                       title: "Failed to update",

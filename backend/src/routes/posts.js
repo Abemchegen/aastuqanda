@@ -1,8 +1,13 @@
 const express = require("express");
+const multer = require("multer");
 const store = require("../data/store");
 const { requireAuth, maybeAuth } = require("../middleware/auth");
+const { uploadBuffer, getFolder } = require("../services/cloudinary");
 
 const router = express.Router();
+
+// Memory storage; upload to Cloudinary
+const upload = multer({ storage: multer.memoryStorage() });
 
 // List + paged + filters
 router.get("/", maybeAuth, async (req, res) => {
@@ -151,3 +156,30 @@ router.delete("/:postId/comments/:commentId", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Upload post images (multipart/form-data, field name: images)
+router.post(
+  "/images",
+  requireAuth,
+  upload.array("images", 6),
+  async (req, res) => {
+    try {
+      const files = req.files;
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: "images required" });
+      }
+      const uploads = await Promise.all(
+        files.map((f) => uploadBuffer(f.buffer, f.mimetype, getFolder("posts")))
+      );
+      const urls = uploads.map((u) => u.secure_url);
+      return res.json({ ok: true, urls });
+    } catch (err) {
+      return res
+        .status(500)
+        .json({
+          error: "images upload failed",
+          details: String((err && err.message) || err),
+        });
+    }
+  }
+);

@@ -5,6 +5,9 @@ export interface Space {
   description: string;
   memberCount: number;
   icon: string;
+  image?: string;
+  creator: { id: string; username: string; email: string; avatar: string };
+  joined?: boolean;
 }
 
 export interface Post {

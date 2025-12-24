@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Lock,
@@ -19,6 +19,7 @@ import { useAPI } from "@/hooks/use-api";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { username: paramUsername } = useParams();
   const { user, updateProfile, logout } = useAuth();
   const { toast } = useToast();
   const {
@@ -27,6 +28,9 @@ export default function Profile() {
     fetchMyPosts,
     fetchMyComments,
     fetchMySavedPosts,
+    fetchUserProfile,
+    fetchUserPostsPublic,
+    fetchUserCommentsPublic,
   } = useAPI();
 
   const [editingBio, setEditingBio] = useState(false);
@@ -36,34 +40,52 @@ export default function Profile() {
   const [myComments, setMyComments] = useState<any[]>([]);
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
 
+  const [publicProfile, setPublicProfile] = useState<any | null>(null);
+  const isOwnProfile =
+    !paramUsername ||
+    (user && paramUsername?.toLowerCase() === user.username.toLowerCase());
+
   useEffect(() => {
     (async () => {
-      const token = localStorage.getItem("campusloop_access_token");
-      if (!token) return;
-      const [posts, comments, saved] = await Promise.all([
-        fetchMyPosts(token),
-        fetchMyComments(token),
-        fetchMySavedPosts(token),
-      ]);
-      if (Array.isArray(posts)) setMyPosts(posts);
-      if (Array.isArray(comments)) setMyComments(comments);
-      if (Array.isArray(saved)) setSavedPosts(saved);
+      if (isOwnProfile) {
+        const token = localStorage.getItem("campusloop_access_token");
+        if (!token) return;
+        const [posts, comments, saved] = await Promise.all([
+          fetchMyPosts(token),
+          fetchMyComments(token),
+          fetchMySavedPosts(token),
+        ]);
+        if (Array.isArray(posts)) setMyPosts(posts);
+        if (Array.isArray(comments)) setMyComments(comments);
+        if (Array.isArray(saved)) setSavedPosts(saved);
+      } else if (paramUsername) {
+        const [profile, posts, comments] = await Promise.all([
+          fetchUserProfile(paramUsername),
+          fetchUserPostsPublic(paramUsername),
+          fetchUserCommentsPublic(paramUsername),
+        ]);
+        setPublicProfile(profile || null);
+        if (Array.isArray(posts)) setMyPosts(posts);
+        if (Array.isArray(comments)) setMyComments(comments);
+        setSavedPosts([]);
+      }
     })();
-  }, []);
+  }, [paramUsername, isOwnProfile]);
 
-  if (!user) {
+  if (!user && !paramUsername) {
     navigate("/login");
     return null;
   }
 
-  const avatarSrc = user.avatar
-    ? user.avatar.startsWith("http")
-      ? user.avatar
-      : `http://localhost:4000${user.avatar}`
+  const displayUser: any = isOwnProfile ? user : publicProfile;
+  const avatarSrc = displayUser?.avatar
+    ? (displayUser.avatar as string).startsWith("http")
+      ? displayUser.avatar
+      : `http://localhost:4000${displayUser.avatar}`
     : "";
 
   const handleAvatarFile = async (file?: File) => {
-    if (!file || !user) return;
+    if (!file || !user || !isOwnProfile) return;
     const token = localStorage.getItem("campusloop_access_token");
     if (!token) {
       toast({
@@ -96,7 +118,7 @@ export default function Profile() {
   };
 
   const handleSaveBio = async () => {
-    if (!user) return;
+    if (!user || !isOwnProfile) return;
     const token = localStorage.getItem("campusloop_access_token");
     if (!token) {
       toast({
@@ -116,6 +138,7 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
+    if (!isOwnProfile) return;
     logout();
     navigate("/");
     toast({
@@ -124,12 +147,15 @@ export default function Profile() {
     });
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dt?: Date | string | null) => {
+    if (!dt) return "";
+    const d = dt instanceof Date ? dt : new Date(dt);
+    if (isNaN(d.getTime())) return "";
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }).format(date);
+    }).format(d);
   };
 
   return (
@@ -165,44 +191,54 @@ export default function Profile() {
                 </div>
                 <div>
                   <h1 className="font-display text-2xl font-bold">
-                    {user.username}
+                    {displayUser?.username}
                   </h1>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <Lock className="h-4 w-4" />
-                    <span>Username is permanent</span>
+                    {isOwnProfile && (
+                      <>
+                        <Lock className="h-4 w-4" />
+                        <span>Username is permanent</span>
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined {formatDate(user.createdAt)}</span>
+                    <span>
+                      Joined {formatDate(displayUser?.createdAt as any)}
+                    </span>
                   </div>
                   <div className="mt-3">
-                    <label className="inline-flex items-center gap-2 text-sm cursor-pointer text-primary">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) =>
-                          handleAvatarFile(e.target.files?.[0] || undefined)
-                        }
-                        disabled={uploadingAvatar}
-                      />
-                      <Upload className="h-4 w-4" />
-                      {uploadingAvatar
-                        ? "Uploading..."
-                        : "Upload profile picture"}
-                    </label>
+                    {isOwnProfile && (
+                      <label className="inline-flex items-center gap-2 text-sm cursor-pointer text-primary">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleAvatarFile(e.target.files?.[0] || undefined)
+                          }
+                          disabled={uploadingAvatar}
+                        />
+                        <Upload className="h-4 w-4" />
+                        {uploadingAvatar
+                          ? "Uploading..."
+                          : "Upload profile picture"}
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>
               {/* Logout */}
               <div>
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </Button>
+                {isOwnProfile && (
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={handleLogout}
+                  >
+                    Log Out
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -210,14 +246,16 @@ export default function Profile() {
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="font-semibold">Bio</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingBio(!editingBio)}
-                >
-                  <Edit2 className="h-4 w-4 mr-1" />
-                  {editingBio ? "Cancel" : "Edit"}
-                </Button>
+                {isOwnProfile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingBio(!editingBio)}
+                  >
+                    <Edit2 className="h-4 w-4 mr-1" />
+                    {editingBio ? "Cancel" : "Edit"}
+                  </Button>
+                )}
               </div>
               {editingBio ? (
                 <div className="space-y-2">
@@ -238,7 +276,8 @@ export default function Profile() {
                 </div>
               ) : (
                 <p className="text-muted-foreground">
-                  {user.bio || "No bio yet. Click edit to add one!"}
+                  {(isOwnProfile ? user?.bio : publicProfile?.bio) ||
+                    (isOwnProfile ? "No bio yet. Click edit to add one!" : "")}
                 </p>
               )}
             </div>
@@ -248,7 +287,11 @@ export default function Profile() {
         {/* Activity Tabs */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base">Your Activity</CardTitle>
+            <CardTitle className="text-base">
+              {isOwnProfile
+                ? "Your Activity"
+                : `${publicProfile?.username || "User"}'s Activity`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="posts">
@@ -261,37 +304,37 @@ export default function Profile() {
                   <MessageSquare className="h-4 w-4" />
                   Comments
                 </TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1 gap-2">
-                  <Upload className="h-4 w-4 rotate-180" />
-                  Saved
-                </TabsTrigger>
+                {isOwnProfile && (
+                  <TabsTrigger value="saved" className="flex-1 gap-2">
+                    <Upload className="h-4 w-4 rotate-180" />
+                    Saved
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="posts" className="mt-4 space-y-3">
                 {myPosts.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
-                    Your posts will appear here once you start contributing.
+                    {isOwnProfile
+                      ? "Your posts will appear here once you start contributing."
+                      : "This user doesn't have any posts yet."}
                   </p>
                 ) : (
                   <ul className="space-y-3">
                     {myPosts.map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex justify-between items-center"
-                      >
-                        <div>
-                          <div className="font-medium">{p.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(p.createdAt).toLocaleString()} in loop/
-                            {p.space?.slug}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigate(`/post/${p.id}`)}
+                      <li key={p.id}>
+                        <Link
+                          to={`/post/${p.id}`}
+                          className="block rounded hover:bg-muted/40 p-2"
                         >
-                          View
-                        </Button>
+                          <div>
+                            <div className="font-medium">{p.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(p.createdAt).toLocaleString()} in{" "}
+                              {p.space?.slug}
+                            </div>
+                          </div>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -301,64 +344,59 @@ export default function Profile() {
               <TabsContent value="comments" className="mt-4 space-y-3">
                 {myComments.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
-                    Your comments will show up here after you join the
-                    discussion.
+                    {isOwnProfile
+                      ? "Your comments will show up here after you join the discussion."
+                      : "This user doesn't have any comments yet."}
                   </p>
                 ) : (
                   <ul className="space-y-3">
                     {myComments.map((c) => (
-                      <li
-                        key={c.id}
-                        className="flex justify-between items-center"
-                      >
-                        <div className="truncate">
-                          <div className="text-sm truncate">{c.content}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(c.createdAt).toLocaleString()} on post
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigate(`/post/${c.postId}`)}
+                      <li key={c.id}>
+                        <Link
+                          to={`/post/${c.postId}`}
+                          className="block rounded hover:bg-muted/40 p-2"
                         >
-                          View
-                        </Button>
+                          <div className="truncate">
+                            <div className="text-sm truncate">{c.content}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(c.createdAt).toLocaleString()} on post
+                            </div>
+                          </div>
+                        </Link>
                       </li>
                     ))}
                   </ul>
                 )}
               </TabsContent>
 
-              <TabsContent value="saved" className="mt-4 space-y-3">
-                {savedPosts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Saved posts you add will appear here.
-                  </p>
-                ) : (
-                  <ul className="space-y-3">
-                    {savedPosts.map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex justify-between items-center"
-                      >
-                        <div>
-                          <div className="font-medium">{p.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(p.createdAt).toLocaleString()} in loop/
-                            {p.space?.slug}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => navigate(`/post/${p.id}`)}
-                        >
-                          View
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
+              {isOwnProfile && (
+                <TabsContent value="saved" className="mt-4 space-y-3">
+                  {savedPosts.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Saved posts you add will appear here.
+                    </p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {savedPosts.map((p) => (
+                        <li key={p.id}>
+                          <Link
+                            to={`/post/${p.id}`}
+                            className="block rounded hover:bg-muted/40 p-2"
+                          >
+                            <div>
+                              <div className="font-medium">{p.title}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(p.createdAt).toLocaleString()} in{" "}
+                                {p.space?.slug}
+                              </div>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
+              )}
             </Tabs>
           </CardContent>
         </Card>

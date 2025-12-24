@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
+import { SpaceLogo } from "@/components/SpaceLogo";
 import { Home, Compass, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAPI } from "@/hooks/use-api";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -14,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SpaceSidebarProps {
   isOpen: boolean;
@@ -28,16 +30,25 @@ export function SpaceSidebar({
   selectedSpace,
   onSelectSpace,
 }: SpaceSidebarProps) {
-  const { fetchSpaces } = useAPI();
+  const { fetchSpaces, uploadSpaceImage, createSpaceRequest } = useAPI();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [spaces, setSpaces] = useState<
-    Array<{ id: string; slug: string; icon?: string; description?: string }>
+    Array<{
+      id: string;
+      slug: string;
+      icon?: string;
+      description?: string;
+      image?: string;
+    }>
   >([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [spaceName, setSpaceName] = useState("");
   const [spaceDescription, setSpaceDescription] = useState("");
+  const [spaceImage, setSpaceImage] = useState<File | null>(null);
+  const [spaceImagePreview, setSpaceImagePreview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
-  const { createSpaceRequest } = useAPI();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -61,7 +72,7 @@ export function SpaceSidebar({
       typeof window !== "undefined"
         ? localStorage.getItem("campusloop_access_token")
         : null;
-    if (!token) {
+    if (!user || !token) {
       toast({
         title: "Please log in",
         description: "You need to be signed in to create a space.",
@@ -72,16 +83,35 @@ export function SpaceSidebar({
 
     try {
       setSubmitting(true);
-      const res = await createSpaceRequest({ name, description }, token);
+      let imageUrl = "";
+      if (spaceImage) {
+        try {
+          const upload = await uploadSpaceImage(spaceImage, token);
+          if (upload?.url) imageUrl = upload.url;
+        } catch (_) {
+          // ignore upload error, continue without image
+        }
+      }
+      const res = await createSpaceRequest(
+        { name, description, image: imageUrl },
+        token
+      );
       toast({
         title: "Space request sent",
-        description: "Your space has been submitted for creation.",
+        description: "Your space has been created.",
       });
       setSpaceName("");
       setSpaceDescription("");
+      setSpaceImage(null);
+      setSpaceImagePreview("");
       setCreateOpen(false);
       const refreshed = await fetchSpaces();
       if (Array.isArray(refreshed)) setSpaces(refreshed);
+      // Navigate to the new space and select it so it appears immediately
+      if (res?.slug) {
+        onSelectSpace(res.slug);
+        navigate(`/space/${res.slug}`);
+      }
     } catch (err: any) {
       const message = err?.response?.data?.error || "Could not create space.";
       toast({
@@ -99,7 +129,7 @@ export function SpaceSidebar({
       typeof window !== "undefined"
         ? localStorage.getItem("campusloop_access_token")
         : null;
-    if (!token) {
+    if (!user || !token) {
       toast({
         title: "Please log in",
         description: "Create an account or log in to create a space.",
@@ -108,6 +138,20 @@ export function SpaceSidebar({
       return;
     }
     setCreateOpen(true);
+  };
+
+  const handleImageSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith("image/")) return;
+    setSpaceImage(file);
+    setSpaceImagePreview(URL.createObjectURL(file));
+  };
+
+  const clearImage = () => {
+    setSpaceImage(null);
+    setSpaceImagePreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const navItems = [
@@ -145,12 +189,10 @@ export function SpaceSidebar({
                     "bg-sidebar-accent text-sidebar-accent-foreground"
                 )}
                 onClick={() => {
-                  if (item.path === "/explore") {
-                    navigate("/explore");
-                    // Don't close sidebar on desktop for explore
-                    if (window.innerWidth < 768) onClose();
-                  } else {
-                    onSelectSpace(item.slug);
+                  // Always use onSelectSpace so parent state updates for highlight
+                  onSelectSpace(item.slug);
+                  // Parent handles navigation; preserve mobile close behavior for Explore
+                  if (item.path !== "/explore" || window.innerWidth < 768) {
                     onClose();
                   }
                 }}
@@ -196,11 +238,13 @@ export function SpaceSidebar({
                         "bg-sidebar-accent text-sidebar-accent-foreground"
                     )}
                   >
-                    <span className="text-lg">{space.icon}</span>
+                    <SpaceLogo
+                      image={space.image}
+                      alt={`${space.slug} logo`}
+                      className="h-6 w-6"
+                      variant="sidebar"
+                    />
                     <span className="flex-1 truncate text-left">
-                      <span className="text-space-prefix font-medium">
-                        loop/
-                      </span>
                       {space.slug}
                     </span>
                   </Button>
@@ -242,6 +286,50 @@ export function SpaceSidebar({
                 value={spaceDescription}
                 onChange={(e) => setSpaceDescription(e.target.value)}
               />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">
+                Space image (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={(e) => handleImageSelected(e.target.files)}
+              />
+              <div
+                className="flex items-center justify-between rounded border border-dashed p-3 text-sm cursor-pointer hover:border-primary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div>
+                  {spaceImagePreview
+                    ? "Change image"
+                    : "Upload a square logo or banner"}
+                </div>
+                {spaceImagePreview && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearImage();
+                    }}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {spaceImagePreview && (
+                <div className="mt-2 h-28 w-full overflow-hidden rounded border bg-muted/30">
+                  <img
+                    src={spaceImagePreview}
+                    alt="Space preview"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

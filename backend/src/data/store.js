@@ -9,6 +9,14 @@ function slugify(name) {
     .replace(/^-|-$/g, "");
 }
 
+// Notification milestone helper: 1, 10, 100, 1000, ...
+function isMilestone(n) {
+  if (!Number.isFinite(n) || n < 1) return false;
+  if (n === 1) return true;
+  while (n % 10 === 0) n = n / 10;
+  return n === 1;
+}
+
 // Users
 async function addUser({ username, email, password }) {
   const user = await prisma.user.create({
@@ -29,10 +37,16 @@ async function getUserById(id) {
 }
 
 // Spaces
-async function addSpace({ name, description, createdBy }) {
+async function addSpace({ name, description, createdBy, image }) {
   const slug = slugify(name);
   const space = await prisma.space.create({
-    data: { name, description: description || "", slug, createdBy },
+    data: {
+      name,
+      description: description || "",
+      slug,
+      createdBy,
+      image: image || "",
+    },
   });
   await prisma.spaceMembership.create({
     data: { spaceId: space.id, userId: createdBy },
@@ -64,6 +78,44 @@ async function getSpaceById(id) {
   });
   return shapeSpace(space);
 }
+
+async function deleteSpace(spaceIdOrSlug, userId) {
+  // Accept either internal id or public slug
+  let space = await getSpaceById(spaceIdOrSlug);
+  if (!space) {
+    space = await getSpaceBySlug(spaceIdOrSlug);
+  }
+  if (!space) return false;
+  // Ownership check: only creator can delete the space
+  if (space.createdBy !== userId) return false;
+  try {
+    // Remove memberships and posts first to satisfy FK constraints
+    await prisma.spaceMembership.deleteMany({ where: { spaceId: space.id } });
+    await prisma.post.deleteMany({ where: { spaceId: space.id } });
+    await prisma.space.delete({ where: { id: space.id } });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function updateSpaceImage(spaceIdOrSlug, userId, imageUrl) {
+  // Accept either internal id or public slug
+  let space = await getSpaceById(spaceIdOrSlug);
+  if (!space) {
+    space = await getSpaceBySlug(spaceIdOrSlug);
+  }
+  if (!space) return { ok: false, reason: "not-found" };
+  // Ownership check: only creator can update the space image
+  if (space.createdBy !== userId) return { ok: false, reason: "forbidden" };
+  const updated = await prisma.space.update({
+    where: { id: space.id },
+    data: { image: imageUrl || "" },
+    include: spaceInclude,
+  });
+  return { ok: true, space: shapeSpace(updated) };
+}
+
 async function getSpaceBySlug(slug) {
   const space = await prisma.space.findUnique({
     where: { slug },
@@ -102,6 +154,15 @@ async function joinSpace(spaceIdOrSlug, userId) {
     create: { userId, spaceId: space.id },
     update: {},
   });
+  // Notify space creator on member milestones
+  const memberCount = await prisma.spaceMembership.count({ where: { spaceId: space.id } });
+  if (isMilestone(memberCount)) {
+    await addNotification({
+      userId: space.createdBy,
+      type: "space_members_milestone",
+      payload: { spaceId: space.id, slug: space.slug, members: memberCount },
+    });
+  }
   return space;
 }
 async function leaveSpace(spaceIdOrSlug, userId) {
@@ -178,8 +239,13 @@ async function getPostById(id, userId) {
 async function deletePost(id, userId) {
   const post = await prisma.post.findUnique({ where: { id } });
   if (!post) return { ok: false, reason: "not-found" };
-  if (post.authorId !== userId) return { ok: false, reason: "forbidden" };
-  const placeholder = "This post was deleted by the owner.";
+  const space = await prisma.space.findUnique({ where: { id: post.spaceId } });
+  const isAuthor = post.authorId === userId;
+  const isAdmin = !!space && space.createdBy === userId;
+  if (!isAuthor && !isAdmin) return { ok: false, reason: "forbidden" };
+  const placeholder = isAuthor
+    ? "This post was deleted by the owner."
+    : "This post was deleted by the admin.";
   const updated = await prisma.post.update({
     where: { id },
     data: {
@@ -201,6 +267,13 @@ async function listPosts({
     const space = await prisma.space.findUnique({ where: { slug: spaceSlug } });
     where.spaceId = space ? space.id : "__none__"; // will yield empty if not found
   }
+  // Exclude posts that have been soft-deleted (placeholder content)
+  where = {
+    ...where,
+    NOT: {
+      content: { startsWith: "This post was deleted by" },
+    },
+  };
   const items = await prisma.post.findMany({
     where,
     include: { space: true },
@@ -286,6 +359,14 @@ async function castVote({ postId, userId, type }) {
     where: { id: postId },
     data: { votes },
   });
+  // Notify post author on upvote milestones (1,10,100,...)
+  if (type === "upvote" && isMilestone(votes)) {
+    await addNotification({
+      userId: updated.authorId,
+      type: "post_upvotes_milestone",
+      payload: { postId: updated.id, title: updated.title, votes },
+    });
+  }
   return { ok: true, post: updated };
 }
 async function savePost({ postId, userId }) {
@@ -306,14 +387,30 @@ async function unsavePost({ postId, userId }) {
 // User activity
 function getUserPosts(userId) {
   return prisma.post.findMany({
-    where: { authorId: userId },
+    where: {
+      authorId: userId,
+      NOT: { content: { startsWith: "This post was deleted by" } },
+    },
+    include: { space: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+function getUserPostsPublic(userId) {
+  return prisma.post.findMany({
+    where: {
+      authorId: userId,
+      NOT: { content: { startsWith: "This post was deleted by" } },
+    },
     include: { space: true },
     orderBy: { createdAt: "desc" },
   });
 }
 function getUserComments(userId) {
   return prisma.comment.findMany({
-    where: { authorId: userId },
+    where: {
+      authorId: userId,
+      NOT: { content: { startsWith: "This comment was deleted by" } },
+    },
     include: { post: true },
     orderBy: { createdAt: "desc" },
   });
@@ -338,6 +435,20 @@ async function addComment({ postId, authorId, content, parentId }) {
   const comment = await prisma.comment.create({
     data: { postId, authorId, content, parentId: parentId ?? null },
   });
+  // Notify post author on comment milestones (1,10,100,...), excluding deleted placeholders
+  const commentCount = await prisma.comment.count({
+    where: {
+      postId,
+      NOT: { content: { startsWith: "This comment was deleted by" } },
+    },
+  });
+  if (isMilestone(commentCount)) {
+    await addNotification({
+      userId: post.authorId,
+      type: "post_comments_milestone",
+      payload: { postId: post.id, title: post.title, comments: commentCount },
+    });
+  }
   return comment;
 }
 async function updateComment({ postId, commentId, userId, content }) {
@@ -363,9 +474,18 @@ async function deleteComment({ postId, commentId, userId }) {
   if (!comment || comment.postId !== postId)
     return { ok: false, reason: "not-found" };
   const post = await prisma.post.findUnique({ where: { id: postId } });
-  if (!(comment.authorId === userId || (post && post.authorId === userId)))
+  if (!post) return { ok: false, reason: "not-found" };
+  const space = await prisma.space.findUnique({ where: { id: post.spaceId } });
+  const isAuthor = comment.authorId === userId;
+  const isPostOwner = post.authorId === userId;
+  const isAdmin = !!space && space.createdBy === userId;
+  if (!(isAuthor || isPostOwner || isAdmin))
     return { ok: false, reason: "forbidden" };
-  const placeholder = "This comment was deleted by the owner.";
+  const placeholder = isAuthor
+    ? "This comment was deleted by the owner."
+    : isAdmin
+    ? "This comment was deleted by the admin."
+    : "This comment was deleted by the post owner.";
   await prisma.comment.update({
     where: { id: commentId },
     data: { content: placeholder },
@@ -492,11 +612,13 @@ module.exports = {
   getUserById,
   // spaces
   addSpace,
+  deleteSpace,
   getSpaces,
   getSpaceById,
   getSpaceBySlug,
   joinSpace,
   leaveSpace,
+  updateSpaceImage,
   getUserSpaces,
   getUserMembershipSpaceIds,
   // posts
@@ -509,6 +631,7 @@ module.exports = {
   savePost,
   unsavePost,
   getUserPosts,
+  getUserPostsPublic,
   getUserComments,
   getUserSavedPosts,
   // comments

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SpaceLogo } from "@/components/SpaceLogo";
 import { PostCard } from "@/components/PostCard";
 import { FeedFilters } from "@/components/FeedFilters";
 import { useAPI } from "@/hooks/use-api";
@@ -16,7 +17,13 @@ const Index = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const { fetchPostsPaged, fetchSpaces } = useAPI();
   const [spaces, setSpaces] = useState<
-    Array<{ id: string; slug: string; icon?: string; description?: string }>
+    Array<{
+      id: string;
+      slug: string;
+      icon?: string;
+      description?: string;
+      image?: string;
+    }>
   >([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -136,10 +143,13 @@ const Index = () => {
             {/* Space header */}
             {currentSpace && (
               <div className="flex items-center gap-3 p-4 rounded-xl bg-card border animate-fade-in">
-                <span className="text-3xl">{currentSpace.icon}</span>
+                <SpaceLogo
+                  image={currentSpace?.image}
+                  alt={`${currentSpace?.slug} logo`}
+                  className="h-10 w-10"
+                />
                 <div>
                   <h1 className="font-display font-bold text-xl">
-                    <span className="text-primary">loop/</span>
                     {currentSpace.slug}
                   </h1>
                   <p className="text-sm text-muted-foreground">
@@ -180,10 +190,12 @@ const Index = () => {
                     {spaces.map((space) => (
                       <SelectItem key={space.slug} value={space.slug}>
                         <span className="flex items-center gap-2">
-                          <span>{space.icon}</span>
-                          <span className="text-primary font-medium">
-                            loop/
-                          </span>
+                          <SpaceLogo
+                            image={space.image}
+                            alt={`${space.slug} logo`}
+                            className="h-4 w-4"
+                          />
+
                           {space.slug}
                         </span>
                       </SelectItem>

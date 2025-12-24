@@ -3,7 +3,7 @@
 
 import axios from "axios";
 
-const API_BASE = "http://localhost:4000/api";
+const API_BASE = (import.meta as any)?.env?.VITE_API_BASE || "http://localhost:4000/api";
 
 // Spaces
 export const getSpaces = async () => {
@@ -31,13 +31,56 @@ export const getSpaceById = async (spaceId: string) => {
 };
 
 export const requestNewSpace = async (
-  data: { name: string; description: string },
+  data: { name: string; description: string; image?: string },
   token: string
 ) => {
   const response = await axios.post(`${API_BASE}/spaces/request`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
   console.log("requestNewSpace response", response.data);
+  return response.data;
+};
+
+export const uploadSpaceImage = async (file: File, token: string) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  const response = await axios.post(`${API_BASE}/spaces/images`, formData, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  console.log("uploadSpaceImage response", response.data);
+  return response.data;
+};
+
+export const updateSpaceImage = async (
+  spaceId: string,
+  image: string,
+  token: string
+) => {
+  const response = await axios.put(
+    `${API_BASE}/spaces/${spaceId}/image`,
+    { image },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  console.log("updateSpaceImage response", response.data);
+  return response.data;
+};
+
+export const deleteSpaceImage = async (spaceId: string, token: string) => {
+  const response = await axios.delete(`${API_BASE}/spaces/${spaceId}/image`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  console.log("deleteSpaceImage response", response.data);
+  return response.data;
+};
+export const deleteSpace = async (
+  spaceId: string,
+  token: string,
+) => {
+  const response = await axios.delete(
+    `${API_BASE}/spaces/${spaceId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  console.log("deleteSpace response", response.data);
   return response.data;
 };
 
@@ -96,6 +139,22 @@ export const createPost = async (
     headers: { Authorization: `Bearer ${token}` },
   });
   console.log("createPost response", response.data);
+  return response.data;
+};
+
+export const uploadPostImages = async (
+  files: File[],
+  token: string
+) => {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("images", f));
+  const response = await axios.post(`${API_BASE}/posts/images`, formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  console.log("uploadPostImages response", response.data);
   return response.data;
 };
 
@@ -202,6 +261,18 @@ export const deleteComment = async (
 export const getUserProfile = async (username: string) => {
   const response = await axios.get(`${API_BASE}/profiles/${username}`);
   console.log("getUserProfile response", response.data);
+  return response.data;
+};
+
+export const getUserPostsByUsername = async (username: string) => {
+  const response = await axios.get(`${API_BASE}/profiles/${username}/posts`);
+  console.log("getUserPostsByUsername response", response.data);
+  return response.data;
+};
+
+export const getUserCommentsByUsername = async (username: string) => {
+  const response = await axios.get(`${API_BASE}/profiles/${username}/comments`);
+  console.log("getUserCommentsByUsername response", response.data);
   return response.data;
 };
 

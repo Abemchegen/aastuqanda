@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Explore from "./pages/Explore";
 import SpaceDetail from "./pages/SpaceDetail";
+import SpaceAdmin from "./pages/SpaceAdmin";
 import NotFound from "./pages/NotFound";
 import VerifyEmail from "./pages/VerifyEmail";
 
@@ -32,8 +33,10 @@ const App = () => (
                 <Route index element={<Index />} />
                 <Route path="post/:postId" element={<PostDetail />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="profile/:username" element={<Profile />} />
                 <Route path="explore" element={<Explore />} />
                 <Route path="space/:spaceSlug" element={<SpaceDetail />} />
+                <Route path="space/:spaceSlug/admin" element={<SpaceAdmin />} />
               </Route>
               {/* Non-layout routes (auth, 404) */}
               <Route path="/login" element={<Login />} />

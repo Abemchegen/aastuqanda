@@ -31,6 +31,33 @@ Server listens on `http://localhost:4000/api` by default.
 - Tags are extracted from post `content` using hashtags (e.g., `#math`).
 - This is a starter backend; tighten security (hash passwords) for production.
 
+### Image Uploads (Cloudinary)
+
+This backend uses Cloudinary for avatars, space images, and post images.
+
+- Set the following in `.env`:
+
+```
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+# Optional: parent folder (default: campusloop)
+CLOUDINARY_UPLOAD_FOLDER=campusloop
+```
+
+- Install the Cloudinary SDK:
+
+```
+npm install cloudinary
+```
+
+- Endpoints:
+  - `POST /api/profiles/avatar` (field: `avatar`)
+  - `POST /api/spaces/images` (field: `image`)
+  - `POST /api/posts/images` (field: `images[]` up to 6)
+
+All return secure HTTPS URLs hosted by Cloudinary.
+
 ## Key Endpoints
 
 - Auth: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh-token`, `GET /api/auth/me`, `POST /api/auth/logout`

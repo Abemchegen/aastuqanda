@@ -36,6 +36,33 @@ function formatTimeAgo(
   return `${days}d ago`;
 }
 
+// Extract image URLs from Markdown content (and basic <img> tags)
+function extractImageUrlsFromMarkdown(md: string | undefined): string[] {
+  if (!md) return [];
+  const urls: string[] = [];
+  // Markdown images: ![alt](url "title")
+  const mdImg = /!\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = mdImg.exec(md)) !== null) {
+    urls.push(m[1]);
+  }
+  // HTML <img src="...">
+  const htmlImg = /<img[^>]*src=\"([^\"]+)\"[^>]*>/gi;
+  while ((m = htmlImg.exec(md)) !== null) {
+    urls.push(m[1]);
+  }
+  return urls;
+}
+
+// Remove image markdown/tags for a cleaner text preview
+function stripImagesFromMarkdown(md: string | undefined): string {
+  if (!md) return "";
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/<img[^>]*>/gi, "")
+    .trim();
+}
+
 export function PostCard({ post, onClick }: PostCardProps) {
   const navigate = useNavigate();
   const initialVote = (post as any).currentUserVote;
@@ -71,6 +98,10 @@ export function PostCard({ post, onClick }: PostCardProps) {
     e.stopPropagation();
     navigate(`/tag/${tag}`);
   };
+
+  const imageUrls = extractImageUrlsFromMarkdown(post.content);
+  const previewImage = imageUrls[0];
+  const previewText = stripImagesFromMarkdown(post.content);
 
   return (
     <Card
@@ -168,7 +199,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
             {/* Header */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1.5">
               <span className="font-medium text-space-prefix">
-                loop/{post.spaceSlug}
+                {post.spaceSlug}
               </span>
               <span>•</span>
               <span>{formatTimeAgo(post.createdAt)}</span>
@@ -183,28 +214,25 @@ export function PostCard({ post, onClick }: PostCardProps) {
             </div>
 
             {/* Title */}
-            <h3 className="font-display font-semibold text-foreground leading-snug mb-2 line-clamp-2">
+            <h3 className="font-display font-semibold text-foreground leading-snug mb-1 line-clamp-2">
               {post.title}
             </h3>
 
-            {/* Preview */}
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              {post.content}
-            </p>
-
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {post.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="text-xs cursor-pointer hover:bg-primary/10"
-                    onClick={(e) => handleTagClick(e, tag)}
-                  >
-                    #{tag}
-                  </Badge>
-                ))}
+            {/* Preview with optional image thumbnail */}
+            {/* <p className="text-sm text-muted-foreground line-clamp-2 flex-1 min-w-0">
+                {previewText}
+              </p> */}
+            {previewImage && (
+              <div className="shrink-0">
+                <img
+                  src={previewImage}
+                  alt="post image"
+                  className="rounded-md w-28 h-20 object-cover border"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/post/${post.id}`);
+                  }}
+                />
               </div>
             )}
           </div>

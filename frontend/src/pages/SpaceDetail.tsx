@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Space, Post } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, Check, Plus } from "lucide-react";
+import { SpaceLogo } from "@/components/SpaceLogo";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SpaceDetail() {
@@ -28,8 +29,9 @@ export default function SpaceDetail() {
   const [space, setSpace] = useState<Space | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"hot" | "new" | "top">("hot");
+  const [sortBy, setSortBy] = useState<"hot" | "new" | "top">("new");
   const [isJoined, setIsJoined] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [joiningLoading, setJoiningLoading] = useState(false);
   const [createPostOpen, setCreatePostOpen] = useState(false);
 
@@ -41,11 +43,11 @@ export default function SpaceDetail() {
       if (spaceRes) {
         setSpace(spaceRes);
         setIsJoined(!!spaceRes.joined);
+        setIsOwner(Boolean(user) && spaceRes?.creator?.id === user.id);
       }
       const postsRes = await fetchPostsPaged({ spaceSlug, sort: sortBy });
       if (postsRes?.items) setPosts(postsRes.items);
       else if (Array.isArray(postsRes)) setPosts(postsRes);
-      // Determine membership via my spaces list (authoritative)
       const accessToken = localStorage.getItem("campusloop_access_token");
       if (accessToken) {
         try {
@@ -64,6 +66,19 @@ export default function SpaceDetail() {
     })();
   }, [spaceSlug, sortBy]);
 
+  // Keep isOwner in sync if user or space loads later
+  useEffect(() => {
+    setIsOwner(
+      Boolean(user) && Boolean(space) && space?.creator?.id === user?.id
+    );
+  }, [user?.id, space?.creator?.id]);
+
+  const handleManageSpace = async () => {
+    if (!space) return;
+    // Navigate to owner management page
+    window.location.href = `/space/${space.slug}/admin`;
+  };
+
   const handleJoinToggle = async () => {
     if (!user || !token) {
       toast({
@@ -81,7 +96,7 @@ export default function SpaceDetail() {
         setIsJoined(false);
         toast({
           title: "Left space",
-          description: `You left loop/${spaceSlug}`,
+          description: `You left ${spaceSlug}`,
         });
         // Refresh space to update member count
         const refreshed = await fetchSpaceById(spaceSlug!);
@@ -91,7 +106,7 @@ export default function SpaceDetail() {
         setIsJoined(true);
         toast({
           title: "Joined space",
-          description: `Welcome to loop/${spaceSlug}!`,
+          description: `Welcome to${spaceSlug}!`,
         });
         // Refresh space to update member count
         const refreshed = await fetchSpaceById(spaceSlug!);
@@ -128,6 +143,14 @@ export default function SpaceDetail() {
       return;
     }
     setCreatePostOpen(true);
+  };
+
+  const handlePostCreated = async () => {
+    // Refresh posts list to include the new post immediately
+    if (!spaceSlug) return;
+    const postsRes = await fetchPostsPaged({ spaceSlug, sort: sortBy });
+    if (postsRes?.items) setPosts(postsRes.items);
+    else if (Array.isArray(postsRes)) setPosts(postsRes);
   };
 
   if (loading) {
@@ -177,10 +200,13 @@ export default function SpaceDetail() {
         {/* Space Header */}
         <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <span className="text-5xl">{space.icon || "🌐"}</span>
+            <SpaceLogo
+              image={space.image}
+              alt={`${space.slug} logo`}
+              className="h-16 w-16"
+            />
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground">
-                <span className="text-space-prefix">loop/</span>
                 {space.slug}
               </h1>
               <p className="text-muted-foreground mt-1">{space.description}</p>
@@ -193,18 +219,16 @@ export default function SpaceDetail() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={isJoined ? undefined : handleJoinToggle}
-                disabled={joiningLoading || isJoined}
+                onClick={isOwner ? handleManageSpace : handleJoinToggle}
                 variant={isJoined ? "outline" : "default"}
                 className="shrink-0"
               >
                 {joiningLoading ? (
                   "Loading..."
+                ) : isOwner ? (
+                  <>Manage Space</>
                 ) : isJoined ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Joined
-                  </>
+                  <>Leave Space</>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
@@ -240,6 +264,7 @@ export default function SpaceDetail() {
       <CreatePostDialog
         open={createPostOpen}
         onOpenChange={setCreatePostOpen}
+        onCreated={handlePostCreated}
         defaultSpaceId={space?.id || ""}
         lockSpace
       />

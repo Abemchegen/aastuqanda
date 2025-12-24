@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAPI } from "@/hooks/use-api";
 import { Space } from "@/types";
 import { Users, ArrowRight } from "lucide-react";
+import { SpaceLogo } from "@/components/SpaceLogo";
 import {
   Card,
   CardContent,
@@ -83,10 +84,13 @@ export default function Explore() {
                 <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer group">
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl">{space.icon || "🌐"}</span>
+                      <SpaceLogo
+                        image={space.image}
+                        alt={`${space.slug} logo`}
+                        className="h-10 w-10"
+                      />
                       <div>
                         <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                          <span className="text-space-prefix">loop/</span>
                           {space.slug}
                         </CardTitle>
                         <CardDescription className="flex items-center gap-1 mt-1">

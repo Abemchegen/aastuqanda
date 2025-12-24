@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { X, Send, Lightbulb } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Send, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -20,26 +20,38 @@ import {
 // import { spaces, faqs } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
 import { useAPI } from "@/hooks/use-api";
+import { SpaceLogo } from "@/components/SpaceLogo";
+import { uploadPostImages } from "@/api/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface CreatePostDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: (post: any) => void;
 }
 
 export function CreatePostDialog({
   open,
   onOpenChange,
+  onCreated,
   defaultSpaceId,
   lockSpace = false,
 }: CreatePostDialogProps & { defaultSpaceId?: string; lockSpace?: boolean }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedSpace, setSelectedSpace] = useState(defaultSpaceId || "");
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
+  const [images, setImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [spaces, setSpaces] = useState<
-    Array<{ id: string; slug: string; icon?: string; description?: string }>
+    Array<{
+      id: string;
+      slug: string;
+      icon?: string;
+      description?: string;
+      image?: string;
+    }>
   >([]);
   const { addPost, fetchSpaces } = useAPI();
   const { user } = useAuth();
@@ -63,15 +75,54 @@ export function CreatePostDialog({
   //     )
   //   : [];
 
-  const handleAddTag = () => {
-    if (tagInput.trim() && tags.length < 5 && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()]);
-      setTagInput("");
-    }
+  const handleImagesSelected = (files: FileList | null) => {
+    if (!files) return;
+    processNewFiles(Array.from(files));
   };
 
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
+  const processNewFiles = (files: File[]) => {
+    // only accept images
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    // merge with existing and cap at 6
+    const merged = [...images, ...imageFiles].slice(0, 6);
+    setImages(merged);
+    setImagePreviews(merged.map((f) => URL.createObjectURL(f)));
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const dt = e.dataTransfer;
+    const files: File[] = [];
+    if (dt.items) {
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind === "file") {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    } else if (dt.files) {
+      for (let i = 0; i < dt.files.length; i++) files.push(dt.files[i]);
+    }
+    if (files.length) processNewFiles(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const removeNewImageAt = (index: number) => {
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -92,8 +143,21 @@ export function CreatePostDialog({
       });
       return;
     }
+    let contentWithImages = content;
+    if (images.length > 0) {
+      try {
+        const res = await uploadPostImages(images, token);
+        const urls: string[] = Array.isArray(res?.urls) ? res.urls : [];
+        if (urls.length > 0) {
+          const md = urls.map((u) => `\n![image](${u})`).join("");
+          contentWithImages += md;
+        }
+      } catch (_) {
+        // ignore upload errors, continue without images
+      }
+    }
     const res = await addPost(
-      { title, content, spaceId: selectedSpace },
+      { title, content: contentWithImages, spaceId: selectedSpace },
       token
     );
     if (res) {
@@ -101,10 +165,13 @@ export function CreatePostDialog({
         title: "Post created!",
         description: "Your anonymous question has been posted.",
       });
+      // notify parent to refresh list immediately
+      onCreated?.(res);
       setTitle("");
       setContent("");
       setSelectedSpace("");
-      setTags([]);
+      setImages([]);
+      setImagePreviews([]);
       onOpenChange(false);
     } else {
       toast({
@@ -138,8 +205,11 @@ export function CreatePostDialog({
               {spaces.map((space) => (
                 <SelectItem key={space.id} value={space.id}>
                   <span className="flex items-center gap-2">
-                    <span>{space.icon}</span>
-                    <span className="text-primary font-medium">loop/</span>
+                    <SpaceLogo
+                      image={space.image}
+                      alt={`${space.slug} logo`}
+                      className="h-4 w-4"
+                    />
                     {space.slug}
                   </span>
                 </SelectItem>
@@ -183,56 +253,59 @@ export function CreatePostDialog({
             rows={4}
           />
 
-          {/* Tags */}
+          {/* Images */}
           <div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add tags (max 5)"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                onClick={handleAddTag}
-                disabled={tags.length >= 5}
-              >
-                Add
-              </Button>
+            {/* Hidden file input for click-to-select via drop zone */}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => handleImagesSelected(e.target.files)}
+              ref={fileInputRef}
+              style={{ display: "none" }}
+            />
+            {/* Drag & drop zone */}
+            <div
+              className={
+                "mt-2 p-4 rounded border-2 border-dashed text-sm cursor-pointer " +
+                (isDragging ? "border-primary bg-primary/5" : "border-muted")
+              }
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              Drag & drop images here, or click to select. (Up to 6 images)
             </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1">
-                    #{tag}
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 hover:text-destructive"
+            {imagePreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {imagePreviews.map((src, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={src}
+                      alt={`preview-${i}`}
+                      className="w-full h-24 object-cover rounded border"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 p-0 bg-background/70"
+                      onClick={() => removeNewImageAt(i)}
+                      aria-label="Remove image"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Anonymous notice */}
-          <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            🔒 Your post will be completely anonymous. A random ID will be
-            assigned to you for this thread only.
-          </p>
-
           {/* Submit */}
           <Button onClick={handleSubmit} className="w-full" variant="hero">
             <Send className="h-4 w-4 mr-2" />
-            Post Anonymously
+            Post
           </Button>
         </div>
       </DialogContent>
