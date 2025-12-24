@@ -139,11 +139,15 @@ export function Header({
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">C</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary overflow-hidden">
+            <img
+              src="/image.png"
+              alt="AASTU Tea logo"
+              className="h-full w-full object-cover"
+            />
           </div>
           <span className="hidden font-display text-xl font-bold md:inline-block">
-            Campus<span className="text-primary">Loop</span>
+            AASTU <span className="text-primary">Tea</span>
           </span>
         </Link>
 

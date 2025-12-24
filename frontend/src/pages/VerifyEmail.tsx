@@ -44,7 +44,7 @@ export default function VerifyEmail() {
           // Automatically log the user in with the returned tokens
           loginWithTokens(res.accessToken, res.refreshToken, res.user);
           setStatus("success");
-          setMessage("Email verified! Welcome to CampusLoop...");
+          setMessage("Email verified! Welcome to AASTU Tea...");
           setTimeout(() => navigate("/", { replace: true }), 1200);
         } else {
           setStatus("error");
