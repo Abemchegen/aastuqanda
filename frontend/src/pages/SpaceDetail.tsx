@@ -257,7 +257,18 @@ export default function SpaceDetail() {
               </p>
             </div>
           ) : (
-            posts.map((post) => <PostCard key={post.id} post={post} />)
+            posts.map((post: any) => (
+              <PostCard
+                key={post.id}
+                post={{
+                  ...post,
+                  createdAt: new Date(post.createdAt),
+                  spaceSlug: post.spaceSlug ?? post.space?.slug ?? "",
+                  commentCount: post.commentCount ?? post.commentsCount ?? 0,
+                  tags: post.tags ?? [],
+                }}
+              />
+            ))
           )}
         </div>
       </main>

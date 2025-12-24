@@ -300,17 +300,34 @@ async function listPosts({
   const total = sorted.length;
   const start = (page - 1) * limit;
   const paged = sorted.slice(start, start + limit);
+
+  const pagedIds = paged.map((p) => p.id);
+  const commentCounts = pagedIds.length
+    ? await prisma.comment.groupBy({
+        by: ["postId"],
+        where: { postId: { in: pagedIds } },
+        _count: { _all: true },
+      })
+    : [];
+  const commentCountByPostId = Object.fromEntries(
+    commentCounts.map((row) => [row.postId, row._count._all])
+  );
   // Attach spaceSlug for frontend filtering convenience
   const withSlugs = await Promise.all(
     paged.map(async (p) => {
       if (!userId)
-        return { ...p, spaceSlug: p.space ? p.space.slug : undefined };
+        return {
+          ...p,
+          spaceSlug: p.space ? p.space.slug : undefined,
+          commentCount: commentCountByPostId[p.id] ?? 0,
+        };
       const vote = await prisma.vote.findUnique({
         where: { userId_postId: { userId, postId: p.id } },
       });
       return {
         ...p,
         spaceSlug: p.space ? p.space.slug : undefined,
+        commentCount: commentCountByPostId[p.id] ?? 0,
         currentUserVote:
           vote?.type === "UPVOTE"
             ? "upvote"
