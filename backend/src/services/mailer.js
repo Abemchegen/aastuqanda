@@ -1,25 +1,17 @@
-const nodemailer = require("nodemailer");
+const axios = require("axios");
 
 function getTransport() {
-  const host = process.env.SMTP_HOST || "smtp.resend.com";
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER || "resend";
-  const pass = process.env.SMTP_PASS;
-  if (!pass) {
-    console.warn("SMTP_PASS (Resend API key) not set; email disabled");
+  const apiKey = process.env.RESEND_API_KEY || process.env.SMTP_PASS;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY or SMTP_PASS not set; email disabled");
     return null;
   }
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: false, // Resend uses STARTTLS
-    auth: { user, pass },
-  });
+  return { apiKey };
 }
 
 async function sendVerificationEmail({ to, token, username }) {
-  const transporter = getTransport();
-  if (!transporter) return { sent: false, reason: "smtp_not_configured" };
+  const transport = getTransport();
+  if (!transport) return { sent: false, reason: "api_key_not_configured" };
   const baseUrl =
     process.env.FRONTEND_BASE_URL ||
     process.env.APP_BASE_URL ||
@@ -31,11 +23,34 @@ async function sendVerificationEmail({ to, token, username }) {
   const subject = "Verify your email";
   const text = `Hi ${username},\n\nPlease verify your email by visiting: ${verifyUrl}\n\nIf you did not sign up, you can ignore this email.`;
   const html = `<p>Hi ${username},</p><p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">Verify Email</a></p><p>If you did not sign up, you can ignore this email.</p>`;
+
   try {
-    await transporter.sendMail({ from, to, subject, text, html });
-    return { sent: true };
+    const response = await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from,
+        to: [to],
+        subject,
+        text,
+        html,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${transport.apiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (response.data.id) {
+      return { sent: true };
+    } else {
+      throw new Error("Failed to send email");
+    }
   } catch (err) {
-    console.error("Failed to send verification email", err);
+    console.error(
+      "Failed to send verification email",
+      err.response?.data || err.message
+    );
     return { sent: false, reason: "send_failed" };
   }
 }
