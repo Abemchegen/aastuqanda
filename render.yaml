@@ -12,15 +12,25 @@ services:
           name: campus-qna-db
           property: connectionString
       - key: JWT_SECRET
+        value: set-in-render
       - key: CLOUDINARY_CLOUD_NAME
+        value: set-in-render
       - key: CLOUDINARY_API_KEY
+        value: set-in-render
       - key: CLOUDINARY_API_SECRET
+        value: set-in-render
       - key: CLOUDINARY_UPLOAD_FOLDER
+        value: campusloop
       - key: SMTP_HOST
+        value: set-in-render
       - key: SMTP_PORT
+        value: "587"
       - key: SMTP_USER
+        value: set-in-render
       - key: SMTP_PASS
+        value: set-in-render
       - key: SMTP_FROM
+        value: set-in-render
 
   - type: web
     name: campus-qna-frontend
@@ -30,11 +40,8 @@ services:
     startCommand: npm run preview -- --host 0.0.0.0 --port $PORT
     autoDeploy: true
     envVars:
-      - key: VITE_BACKEND_URL
-        fromService:
-          name: campus-qna-backend
-          type: web
-          property: url
+      - key: VITE_API_BASE
+        value: https://REPLACE_WITH_BACKEND/api
 
 databases:
   - name: campus-qna-db
