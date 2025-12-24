@@ -14,7 +14,24 @@ const usersRouter = require("./routes/users");
 const { isConfigured: cloudinaryConfigured } = require("./services/cloudinary");
 
 const app = express();
-app.use(cors());
+
+// CORS: allow Render frontend and local dev
+const allowedOrigins = [
+  process.env.FRONTEND_ORIGIN || "https://aastuquanda-f.onrender.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+];
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser requests
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // // Ensure uploads directory exists for avatar uploads

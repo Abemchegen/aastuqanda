@@ -32,6 +32,7 @@ export default function Profile() {
     fetchUserPostsPublic,
     fetchUserCommentsPublic,
   } = useAPI();
+  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
 
   const [editingBio, setEditingBio] = useState(false);
   const [bio, setBio] = useState(user?.bio || "");
@@ -81,7 +82,7 @@ export default function Profile() {
   const avatarSrc = displayUser?.avatar
     ? (displayUser.avatar as string).startsWith("http")
       ? displayUser.avatar
-      : `http://localhost:4000${displayUser.avatar}`
+      : `${API_BASE}${displayUser.avatar}`
     : "";
 
   const handleAvatarFile = async (file?: File) => {
