@@ -155,7 +155,9 @@ async function joinSpace(spaceIdOrSlug, userId) {
     update: {},
   });
   // Notify space creator on member milestones
-  const memberCount = await prisma.spaceMembership.count({ where: { spaceId: space.id } });
+  const memberCount = await prisma.spaceMembership.count({
+    where: { spaceId: space.id },
+  });
   if (isMilestone(memberCount)) {
     await addNotification({
       userId: space.createdBy,
@@ -656,4 +658,5 @@ module.exports = {
   createVerificationToken,
   verifyEmailByToken,
   reissueVerificationToken,
+  deleteUserAccount,
 };

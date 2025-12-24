@@ -13,14 +13,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { User, Post, Comment } from "@/types";
 import { useAPI } from "@/hooks/use-api";
+
+interface PostWithSpace extends Omit<Post, "spaceSlug" | "spaceName"> {
+  space: { slug: string };
+}
+
+interface CommentWithPost extends Comment {
+  postId: string;
+}
 
 export default function Profile() {
   const navigate = useNavigate();
   const { username: paramUsername } = useParams();
-  const { user, updateProfile, logout } = useAuth();
+  const { user, updateProfile, logout, deleteAccount } = useAuth();
   const { toast } = useToast();
   const {
     editProfile,
@@ -37,11 +57,12 @@ export default function Profile() {
   const [editingBio, setEditingBio] = useState(false);
   const [bio, setBio] = useState(user?.bio || "");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [myPosts, setMyPosts] = useState<any[]>([]);
-  const [myComments, setMyComments] = useState<any[]>([]);
-  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [myPosts, setMyPosts] = useState<PostWithSpace[]>([]);
+  const [myComments, setMyComments] = useState<CommentWithPost[]>([]);
+  const [savedPosts, setSavedPosts] = useState<PostWithSpace[]>([]);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
-  const [publicProfile, setPublicProfile] = useState<any | null>(null);
+  const [publicProfile, setPublicProfile] = useState<User | null>(null);
   const isOwnProfile =
     !paramUsername ||
     (user && paramUsername?.toLowerCase() === user.username.toLowerCase());
@@ -78,7 +99,7 @@ export default function Profile() {
     return null;
   }
 
-  const displayUser: any = isOwnProfile ? user : publicProfile;
+  const displayUser: User = isOwnProfile ? user : publicProfile;
   const avatarSrc = displayUser?.avatar
     ? (displayUser.avatar as string).startsWith("http")
       ? displayUser.avatar
@@ -148,6 +169,28 @@ export default function Profile() {
     });
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user || !isOwnProfile) return;
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+      logout();
+      navigate("/");
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Could not delete account.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   const formatDate = (dt?: Date | string | null) => {
     if (!dt) return "";
     const d = dt instanceof Date ? dt : new Date(dt);
@@ -204,9 +247,7 @@ export default function Profile() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                     <Calendar className="h-4 w-4" />
-                    <span>
-                      Joined {formatDate(displayUser?.createdAt as any)}
-                    </span>
+                    <span>Joined {formatDate(displayUser?.createdAt)}</span>
                   </div>
                   <div className="mt-3">
                     {isOwnProfile && (
@@ -229,17 +270,48 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-              {/* Logout */}
-              <div>
-                {isOwnProfile && (
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={handleLogout}
-                  >
-                    Log Out
-                  </Button>
-                )}
+              {/* Logout and Delete Account */}
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive hover:text-destructive"
+                    >
+                      Delete Account
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently
+                        delete your account and remove all your data from our
+                        servers, including posts, comments, and profile
+                        information.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAccount}
+                        disabled={deletingAccount}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {deletingAccount ? "Deleting..." : "Delete Account"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
 

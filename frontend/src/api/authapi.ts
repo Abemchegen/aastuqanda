@@ -72,3 +72,13 @@ export const verifyEmail = async (token: string) => {
   console.log("verifyEmail response", response.data);
   return response.data;
 };
+
+
+// Delete account
+export const deleteAccount = async (token: string) => {
+  const response = await axios.delete(`${API_BASE}/auth/account`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  console.log("deleteAccount response", response.data);
+  return response.data;
+};

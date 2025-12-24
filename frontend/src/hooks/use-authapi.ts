@@ -11,6 +11,7 @@ import {
   logoutUser,
   resendVerificationEmail,
   verifyEmail as verifyEmailApi,
+  deleteAccount as deleteAccountApi,
 } from "../api/authapi"
 
 export const useAuthAPI = () => {
@@ -125,6 +126,24 @@ export const useAuthAPI = () => {
     }
   }, []);
 
+  const deleteAccount = async (token: string) => {
+    try {
+      setLoading(true);
+      const res = await deleteAccountApi(token);
+      return res;
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Delete Failed",
+        description: err.response?.data?.error || err.message || "Please try again.",
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     error,
@@ -135,5 +154,6 @@ export const useAuthAPI = () => {
     logout,
     resendVerification,
     verifyEmail,
+    deleteAccount,
   };
 };

@@ -31,6 +31,7 @@ interface AuthContextType {
     message?: string;
     reason?: string;
   }>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout: apiLogout,
     resendVerification: apiResendVerification,
     refresh,
+    deleteAccount: apiDeleteAccount,
   } = useAuthAPI();
 
   useEffect(() => {
@@ -170,6 +172,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   };
 
+  const deleteAccount = async () => {
+    const accessToken = localStorage.getItem("campusloop_access_token");
+    if (!accessToken) throw new Error("Not logged in");
+
+    await apiDeleteAccount(accessToken);
+    // After deletion, logout
+    setUser(null);
+    localStorage.removeItem("campusloop_user");
+    localStorage.removeItem("campusloop_access_token");
+    localStorage.removeItem("campusloop_refresh_token");
+  };
+
   const updateProfile = (updates: Partial<User>) => {
     if (!user) return;
 
@@ -224,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateProfile,
         resendVerification,
+        deleteAccount,
       }}
     >
       {children}

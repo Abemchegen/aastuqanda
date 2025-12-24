@@ -179,4 +179,39 @@ router.post("/logout", requireAuth, async (req, res) => {
   return res.json({ ok: true });
 });
 
+// Delete account
+router.delete("/account", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Delete related records in order to avoid foreign key constraints
+    await prisma.savedPost.deleteMany({ where: { userId } });
+    await prisma.vote.deleteMany({ where: { userId } });
+    await prisma.comment.deleteMany({ where: { userId } });
+    await prisma.post.deleteMany({ where: { userId } });
+    await prisma.spaceMembership.deleteMany({ where: { userId } });
+    await prisma.notification.deleteMany({ where: { userId } });
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    await prisma.verificationToken.deleteMany({ where: { userId } });
+
+    // Handle spaces created by the user
+    const createdSpaces = await prisma.space.findMany({ where: { createdBy: userId } });
+    for (const space of createdSpaces) {
+      // Delete all posts in the space
+      await prisma.post.deleteMany({ where: { spaceId: space.id } });
+      // Delete memberships
+      await prisma.spaceMembership.deleteMany({ where: { spaceId: space.id } });
+      // Delete the space
+      await prisma.space.delete({ where: { id: space.id } });
+    }
+
+    // Finally, delete the user
+    await prisma.user.delete({ where: { id: userId } });
+    res.json({ message: "Account deleted successfully" });
+  } catch (err) {
+    console.error("Failed to delete account", err);
+    res.status(500).json({ error: "Failed to delete account" });
+  }
+});
+
 module.exports = router;
