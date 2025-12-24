@@ -205,11 +205,13 @@ export default function SpaceDetail() {
               alt={`${space.slug} logo`}
               className="h-16 w-16"
             />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-foreground break-words">
                 {space.slug}
               </h1>
-              <p className="text-muted-foreground mt-1">{space.description}</p>
+              <p className="text-muted-foreground mt-1 break-words whitespace-pre-wrap">
+                {space.description}
+              </p>
               <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Users className="h-4 w-4" />

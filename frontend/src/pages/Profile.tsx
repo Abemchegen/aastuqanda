@@ -218,8 +218,8 @@ export default function Profile() {
         {/* Profile header */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex justify-between">
-              <div className="flex items-center gap-4 mb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+              <div className="flex items-center gap-4 mb-6 min-w-0">
                 <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-4xl overflow-hidden">
                   {avatarSrc ? (
                     <img
@@ -233,8 +233,8 @@ export default function Profile() {
                     </span>
                   )}
                 </div>
-                <div>
-                  <h1 className="font-display text-2xl font-bold">
+                <div className="min-w-0">
+                  <h1 className="font-display text-2xl font-bold break-words">
                     {displayUser?.username}
                   </h1>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -350,7 +350,7 @@ export default function Profile() {
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground break-words whitespace-pre-wrap">
                   {(isOwnProfile ? user?.bio : publicProfile?.bio) ||
                     (isOwnProfile ? "No bio yet. Click edit to add one!" : "")}
                 </p>
@@ -402,8 +402,10 @@ export default function Profile() {
                           to={`/post/${p.id}`}
                           className="block rounded hover:bg-muted/40 p-2"
                         >
-                          <div>
-                            <div className="font-medium">{p.title}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium break-words">
+                              {p.title}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               {new Date(p.createdAt).toLocaleString()} in{" "}
                               {p.space?.slug}
@@ -458,8 +460,10 @@ export default function Profile() {
                             to={`/post/${p.id}`}
                             className="block rounded hover:bg-muted/40 p-2"
                           >
-                            <div>
-                              <div className="font-medium">{p.title}</div>
+                            <div className="min-w-0">
+                              <div className="font-medium break-words">
+                                {p.title}
+                              </div>
                               <div className="text-xs text-muted-foreground">
                                 {new Date(p.createdAt).toLocaleString()} in{" "}
                                 {p.space?.slug}

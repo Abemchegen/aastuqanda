@@ -199,16 +199,16 @@ export function Header({
                 notifications.map((n) => {
                   const f = formatNotification(n);
                   const content = (
-                    <div className="flex w-full flex-col items-start gap-1">
+                    <div className="flex w-full min-w-0 flex-col items-start gap-1">
                       <span
                         className={`text-sm font-medium ${
                           n.read ? "" : "text-primary"
-                        }`}
+                        } whitespace-normal break-words`}
                       >
                         {f.title}
                       </span>
                       {f.message && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground whitespace-normal break-words">
                           {f.message}
                         </span>
                       )}

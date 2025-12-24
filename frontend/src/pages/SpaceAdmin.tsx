@@ -213,12 +213,14 @@ export default function SpaceAdmin() {
     <div className="min-h-screen bg-background">
       <main className="container mx-auto p-4 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-foreground break-words">
               Manage {space.slug}
             </h1>
-            <p className="text-muted-foreground">{space.description}</p>
+            <p className="text-muted-foreground break-words whitespace-pre-wrap">
+              {space.description}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1 text-muted-foreground">
@@ -403,10 +405,10 @@ export default function SpaceAdmin() {
               {posts.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-start justify-between p-3 border rounded-md"
+                  className="flex items-start justify-between gap-3 p-3 border rounded-md"
                 >
-                  <div>
-                    <div className="font-medium">{p.title}</div>
+                  <div className="min-w-0">
+                    <div className="font-medium break-words">{p.title}</div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(p.createdAt).toLocaleString()}
                     </div>
@@ -448,10 +450,12 @@ export default function SpaceAdmin() {
                 {comments.map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-start justify-between p-3 border rounded-md"
+                    className="flex items-start justify-between gap-3 p-3 border rounded-md"
                   >
-                    <div>
-                      <div className="text-sm">{c.content}</div>
+                    <div className="min-w-0">
+                      <div className="text-sm break-words whitespace-pre-wrap">
+                        {c.content}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         by{" "}
                         {isDeletedText(c.content) ? (
@@ -461,7 +465,7 @@ export default function SpaceAdmin() {
                             to={`/profile/${encodeURIComponent(
                               c.author.username
                             )}`}
-                            className="hover:underline"
+                            className="hover:underline break-words"
                           >
                             {c.author.username}
                           </Link>

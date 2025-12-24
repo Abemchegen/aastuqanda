@@ -89,8 +89,8 @@ export default function Explore() {
                         alt={`${space.slug} logo`}
                         className="h-10 w-10"
                       />
-                      <div>
-                        <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                      <div className="min-w-0">
+                        <CardTitle className="text-lg group-hover:text-primary transition-colors break-words">
                           {space.slug}
                         </CardTitle>
                         <CardDescription className="flex items-center gap-1 mt-1">
@@ -101,7 +101,7 @@ export default function Explore() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2 break-words">
                       {space.description || "A community for discussions"}
                     </p>
                     <div className="flex items-center gap-1 text-primary text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">

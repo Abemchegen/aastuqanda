@@ -665,7 +665,7 @@ export default function PostDetail() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 pt-4 border-t">
+                    <div className="flex flex-wrap items-center gap-2 pt-4 border-t">
                       <Button variant="ghost" size="sm">
                         <MessageCircle className="h-4 w-4 mr-2" />
                         {comments.length} Comments
