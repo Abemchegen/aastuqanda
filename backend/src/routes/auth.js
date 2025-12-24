@@ -109,7 +109,22 @@ router.get("/verify-email", async (req, res) => {
       error: "invalid_or_expired",
       message: "Verification token is invalid or expired.",
     });
-  return res.json({ ok: true });
+
+  // Issue tokens for automatic login
+  const accessToken = issueAccessToken(user);
+  const refreshToken = await store.createRefreshToken(user.id);
+
+  return res.json({
+    ok: true,
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+    },
+  });
 });
 
 // Resend verification email
@@ -206,13 +221,35 @@ router.delete("/account", requireAuth, async (req, res) => {
           `Transferred ownership of space ${space.id} to ${otherMembers[0].userId}`
         );
       } else {
-        // No other members, delete the space
+        // No other members, delete the space and all its content
+        // Delete in correct order to avoid foreign key constraints
+        await prisma.comment.deleteMany({
+          where: { post: { spaceId: space.id } },
+        });
+        await prisma.vote.deleteMany({
+          where: { post: { spaceId: space.id } },
+        });
+        await prisma.savedPost.deleteMany({
+          where: { post: { spaceId: space.id } },
+        });
+        await prisma.tagOnPost.deleteMany({
+          where: { post: { spaceId: space.id } },
+        });
+        await prisma.post.deleteMany({ where: { spaceId: space.id } });
+        await prisma.spaceMembership.deleteMany({
+          where: { spaceId: space.id },
+        });
         await prisma.space.delete({ where: { id: space.id } });
         console.log(`Deleted space ${space.id} (no other members)`);
       }
     }
 
-    // Delete the user - Prisma cascade will handle all related records
+    // Delete user-related data that might not be covered by cascade
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    await prisma.verificationToken.deleteMany({ where: { userId } });
+    await prisma.notification.deleteMany({ where: { userId } });
+
+    // Delete the user - Prisma cascade will handle posts, comments, votes, saved posts, memberships
     await prisma.user.delete({ where: { id: userId } });
     console.log(`Successfully deleted user ${userId}`);
 

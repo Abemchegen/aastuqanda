@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { useAuthAPI } from "@/hooks/use-authapi";
 
 type Status = "pending" | "success" | "error";
@@ -17,8 +18,10 @@ export default function VerifyEmail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { verifyEmail } = useAuthAPI();
+  const { loginWithTokens } = useAuth();
   const [status, setStatus] = useState<Status>("pending");
   const [message, setMessage] = useState("Verifying your email...");
+  const lastVerifiedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -28,12 +31,20 @@ export default function VerifyEmail() {
       return;
     }
 
+    // In React 18 StrictMode (dev), effects can run twice. Verifying twice can
+    // consume the token on the first request, making the second fail and show a
+    // misleading error even though the user was already verified/logged in.
+    if (lastVerifiedTokenRef.current === token) return;
+    lastVerifiedTokenRef.current = token;
+
     (async () => {
       try {
         const res = await verifyEmail(token);
-        if (res?.ok) {
+        if (res?.ok && res.accessToken && res.user) {
+          // Automatically log the user in with the returned tokens
+          loginWithTokens(res.accessToken, res.refreshToken, res.user);
           setStatus("success");
-          setMessage("Email verified! Redirecting you to CampusLoop...");
+          setMessage("Email verified! Welcome to CampusLoop...");
           setTimeout(() => navigate("/", { replace: true }), 1200);
         } else {
           setStatus("error");
@@ -46,7 +57,7 @@ export default function VerifyEmail() {
         setMessage("Unable to verify right now. Please try again shortly.");
       }
     })();
-  }, [searchParams, navigate, verifyEmail]);
+  }, [searchParams, navigate, verifyEmail, loginWithTokens]);
 
   const Icon =
     status === "success"

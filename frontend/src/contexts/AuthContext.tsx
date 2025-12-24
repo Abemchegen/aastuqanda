@@ -18,6 +18,11 @@ interface AuthContextType {
     ok: boolean;
     reason?: "email_not_verified" | "invalid" | "unknown";
   }>;
+  loginWithTokens: (
+    accessToken: string,
+    refreshToken: string,
+    userData: User
+  ) => void;
   register: (
     email: string,
     password: string,
@@ -132,6 +137,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithTokens = (
+    accessToken: string,
+    refreshToken: string,
+    userData: User
+  ) => {
+    // Store tokens
+    localStorage.setItem("campusloop_access_token", accessToken);
+    localStorage.setItem("campusloop_refresh_token", refreshToken);
+
+    // Set user data
+    const loggedInUser: User = {
+      id: userData.id,
+      username: userData.username,
+      email: userData.email,
+      avatar: userData.avatar ?? "",
+      createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+      bio: userData.bio ?? "",
+    };
+
+    setUser(loggedInUser);
+    localStorage.setItem("campusloop_user", JSON.stringify(loggedInUser));
+  };
+
   const register = async (
     email: string,
     password: string,
@@ -234,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         login,
+        loginWithTokens,
         register,
         logout,
         updateProfile,

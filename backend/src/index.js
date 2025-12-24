@@ -20,9 +20,7 @@ const requiredEnvVars = [
   "CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_API_KEY",
   "CLOUDINARY_API_SECRET",
-  "SMTP_HOST",
-  "SMTP_USER",
-  "SMTP_PASS",
+  "RESEND_API_KEY",
   "SMTP_FROM",
 ];
 
@@ -42,6 +40,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:4173",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
 ];
 
 app.use(

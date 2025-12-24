@@ -66,8 +66,8 @@ export const resendVerificationEmail = async (email: string) => {
 
 // Verify email using token
 export const verifyEmail = async (token: string) => {
-  const response = await axios.post(`${API_BASE}/auth/verify-email`, {
-    token,
+  const response = await axios.get(`${API_BASE}/auth/verify-email`, {
+    params: { token },
   });
   console.log("verifyEmail response", response.data);
   return response.data;
