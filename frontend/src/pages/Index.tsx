@@ -163,7 +163,7 @@ const Index = () => {
             {!selectedSpace && (
               <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 animate-fade-in">
                 <h1 className="font-display font-bold text-2xl mb-2">
-                  Welcome to <span className="text-primary">AASTU Tea</span> 🎓
+                  Welcome to <span className="text-primary">AASTU Q&A</span> 🎓
                 </h1>
                 <p className="text-muted-foreground">
                   Your anonymous space to ask questions, share experiences, and

@@ -1,6 +1,6 @@
-# AASTU Tea
+# AASTU Q&A
 
-AASTU Tea is a full-stack web app for an anonymous, campus-oriented Q&A/community feed.
+AASTU Q&A is a full-stack web app for an anonymous, campus-oriented Q&A/community feed.
 
 - Frontend: Vite + React + TypeScript + shadcn-ui + Tailwind
 - Backend: Node.js + Express + Prisma + PostgreSQL

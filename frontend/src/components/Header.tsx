@@ -142,12 +142,12 @@ export function Header({
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary overflow-hidden">
             <img
               src="/image.png"
-              alt="AASTU Tea logo"
+              alt="AASTU Q&A logo"
               className="h-full w-full object-cover"
             />
           </div>
           <span className="hidden font-display text-xl font-bold md:inline-block">
-            AASTU <span className="text-primary">Tea</span>
+            AASTU <span className="text-primary">Q&A</span>
           </span>
         </Link>
 
