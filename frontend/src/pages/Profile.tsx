@@ -270,49 +270,51 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-              {/* Logout and Delete Account */}
-              <div className="flex flex-col gap-2">
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full text-destructive hover:text-destructive"
-                    >
-                      Delete Account
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete your account and remove all your data from our
-                        servers, including posts, comments, and profile
-                        information.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteAccount}
-                        disabled={deletingAccount}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              {/* Logout and Delete Account (own profile only) */}
+              {isOwnProfile && (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={handleLogout}
+                  >
+                    Log Out
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full text-destructive hover:text-destructive"
                       >
-                        {deletingAccount ? "Deleting..." : "Delete Account"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                        Delete Account
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently
+                          delete your account and remove all your data from our
+                          servers, including posts, comments, and profile
+                          information.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDeleteAccount}
+                          disabled={deletingAccount}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deletingAccount ? "Deleting..." : "Delete Account"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </div>
 
             {/* Bio */}
