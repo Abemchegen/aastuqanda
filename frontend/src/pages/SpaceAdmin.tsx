@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAPI } from "@/hooks/use-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,14 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+
+function isDeletedText(text?: string): boolean {
+  if (!text) return false;
+  return (
+    text.startsWith("This post was deleted by") ||
+    text.startsWith("This comment was deleted by")
+  );
+}
 
 export default function SpaceAdmin() {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
@@ -445,8 +453,22 @@ export default function SpaceAdmin() {
                     <div>
                       <div className="text-sm">{c.content}</div>
                       <div className="text-xs text-muted-foreground">
-                        by {c.author?.username || "unknown"} •{" "}
-                        {new Date(c.createdAt).toLocaleString()}
+                        by{" "}
+                        {isDeletedText(c.content) ? (
+                          "deleted user"
+                        ) : c.author?.username ? (
+                          <Link
+                            to={`/profile/${encodeURIComponent(
+                              c.author.username
+                            )}`}
+                            className="hover:underline"
+                          >
+                            {c.author.username}
+                          </Link>
+                        ) : (
+                          "unknown"
+                        )}{" "}
+                        • {new Date(c.createdAt).toLocaleString()}
                       </div>
                     </div>
                     <Button

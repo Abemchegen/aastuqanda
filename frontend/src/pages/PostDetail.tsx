@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronUp,
@@ -101,11 +101,20 @@ function CommentCard({
     >
       <div className="py-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <span className="font-medium text-foreground">
-            {isDeleted
-              ? "deleted user"
-              : comment.author?.username || comment.authorId}
-          </span>
+          {isDeleted ? (
+            <span className="font-medium text-foreground">deleted user</span>
+          ) : comment.author?.username ? (
+            <Link
+              to={`/profile/${encodeURIComponent(comment.author.username)}`}
+              className="font-medium text-foreground hover:underline"
+            >
+              {comment.author.username}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">
+              {comment.authorId}
+            </span>
+          )}
           <span>•</span>
           <span>{formatTimeAgo(comment.createdAt)}</span>
         </div>
@@ -614,9 +623,20 @@ export default function PostDetail() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                       <span>
                         Posted by{" "}
-                        {isPostDeleted()
-                          ? "deleted user"
-                          : post.author?.username || post.authorId}
+                        {isPostDeleted() ? (
+                          "deleted user"
+                        ) : post.author?.username ? (
+                          <Link
+                            to={`/profile/${encodeURIComponent(
+                              post.author.username
+                            )}`}
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            {post.author.username}
+                          </Link>
+                        ) : (
+                          post.authorId
+                        )}
                       </span>
                       <span>•</span>
                       <span>
