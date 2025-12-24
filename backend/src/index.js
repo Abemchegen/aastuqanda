@@ -17,27 +17,33 @@ const app = express();
 
 // CORS: allow Render frontend and local dev
 const allowedOrigins = [
-  process.env.FRONTEND_ORIGIN || "https://aastuquanda-f.onrender.com",
+  "https://aastuquanda-f.onrender.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:4173",
 ];
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow non-browser requests
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || origin.endsWith(".onrender.com")) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+app.options("*", cors());
 app.use(express.json());
 
-// // Ensure uploads directory exists for avatar uploads
-// const uploadsDir = path.join(__dirname, "..", "uploads");
-// if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-// app.use("/uploads", express.static(uploadsDir));
+app.use(express.json());
 
 app.get("/api/health", (req, res) => {
   res.json({
