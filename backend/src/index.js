@@ -13,6 +13,27 @@ const tagsRouter = require("./routes/tags");
 const usersRouter = require("./routes/users");
 const { isConfigured: cloudinaryConfigured } = require("./services/cloudinary");
 
+// Check required environment variables
+const requiredEnvVars = [
+  "DATABASE_URL",
+  "JWT_SECRET",
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+  "SMTP_HOST",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "SMTP_FROM",
+];
+
+const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error(
+    `Missing required environment variables: ${missingVars.join(", ")}`
+  );
+  process.exit(1);
+}
+
 const app = express();
 
 // CORS: allow Render frontend and local dev
