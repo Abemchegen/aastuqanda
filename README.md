@@ -2,7 +2,7 @@
 
 AASTU Q&A is a full-stack, anonymous, campus-oriented Q&A/community feed for spaces, posts, and discussions.
 
-**Tech stack**: Vite + React + TypeScript + shadcn-ui + Tailwind (frontend) / Node.js + Express + Prisma + PostgreSQL (backend)
+**Tech stack**: Vite + React + TypeScript + shadcn-ui + Tailwind (frontend) / Node.js + Express + Prisma + PostgreSQL (backend).
 
 ## Features
 
