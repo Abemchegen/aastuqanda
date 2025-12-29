@@ -231,11 +231,11 @@ export function PostCard({ post, onClick }: PostCardProps) {
               </p>
             )}
             {previewImage && (
-              <div className="shrink-0">
+              <div className="shrink-0 mt-2">
                 <img
                   src={previewImage}
                   alt="post image"
-                  className="rounded-md w-20 h-16 object-cover border"
+                  className="rounded-md w-32 h-24 object-cover border hover:opacity-90 transition-opacity cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/post/${post.id}`);
