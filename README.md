@@ -6,7 +6,7 @@
 ![Node](https://img.shields.io/badge/Node.js-339933?style=flat&logo=nodedotjs&logoColor=white)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
-> A full-stack, anonymous, campus-oriented Q&A and community feed for Addis Ababa Science and Technology University (AASTU).
+**Tech stack**: Vite + React + TypeScript + shadcn-ui + Tailwind (frontend) / Node.js + Express + Prisma + PostgreSQL (backend).
 
 **AASTU Q&A** is a platform designed to foster communication and knowledge sharing within the campus. It enables users to create spaces, post questions, share updates, and engage in discussions anonymously or publicly.
 
