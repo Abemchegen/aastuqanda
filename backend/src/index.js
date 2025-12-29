@@ -4,6 +4,9 @@ const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./docs/swagger");
+
 const authRouter = require("./routes/auth");
 const spacesRouter = require("./routes/spaces");
 const postsRouter = require("./routes/posts");
@@ -86,10 +89,12 @@ app.use("/api/profiles", profilesRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`API server listening on http://localhost:${port}/api`);
+  console.log(`Docs available at http://localhost:${port}/api-docs`);
   if (!cloudinaryConfigured()) {
     console.warn(
       "[warn] Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET in .env"
