@@ -195,7 +195,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 max-h-24 overflow-hidden">
+          <div className="flex-1 min-w-0 max-h-60 overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1.5">
               <span className="font-medium text-space-prefix">
@@ -235,7 +235,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
                 <img
                   src={previewImage}
                   alt="post image"
-                  className="rounded-md w-32 h-24 object-cover border hover:opacity-90 transition-opacity cursor-pointer"
+                  className="rounded-md w-40 h-30 object-contain border hover:opacity-90 transition-opacity cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/post/${post.id}`);

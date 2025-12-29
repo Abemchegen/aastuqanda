@@ -36,10 +36,10 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
-const morgan = require('morgan');
+const morgan = require("morgan");
 
 // Use Morgan for logging HTTP requests
-app.use(morgan('combined'));
+app.use(morgan("combined"));
 const allowedOrigins = [
   "https://aastuquanda-f.onrender.com",
   "http://localhost:5173",
