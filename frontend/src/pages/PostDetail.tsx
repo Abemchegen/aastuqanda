@@ -23,8 +23,6 @@ import {
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { uploadPostImages } from "@/api/api";
-// import { posts } from "@/data/mockData";
-// import { getCommentsForPost } from "@/data/mockComments";
 import { Comment } from "@/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,6 +76,7 @@ function CommentCard({
   onReply,
   onEdit,
   onDelete,
+  onVote,
   currentUserId,
 }: {
   comment: Comment;
@@ -85,14 +84,17 @@ function CommentCard({
   onReply: (parentId: string, text: string) => Promise<void> | void;
   onEdit: (commentId: string, content: string) => Promise<void> | void;
   onDelete: (commentId: string) => Promise<void> | void;
+  onVote: (commentId: string, type: "upvote" | "downvote" | "none") => Promise<void>;
   currentUserId?: string;
 }) {
-  const [vote, setVote] = useState<"up" | "down" | null>(null);
+  const [vote, setVote] = useState<"up" | "down" | null>(
+    comment.currentUserVote === "upvote" ? "up" :
+    comment.currentUserVote === "downvote" ? "down" : null
+  );
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
   const baseVotes = (comment.votes as number) || 0;
-  const currentVotes =
-    baseVotes + (vote === "up" ? 1 : vote === "down" ? -1 : 0);
+  const currentVotes = baseVotes;
   const isDeleted = isDeletedText(comment.content);
 
   return (
@@ -130,7 +132,11 @@ function CommentCard({
           <Button
             variant={vote === "up" ? "upvote-active" : "ghost"}
             size="icon-sm"
-            onClick={() => setVote(vote === "up" ? null : "up")}
+            onClick={async () => {
+              const newVote = vote === "up" ? null : "up";
+              setVote(newVote);
+              await onVote(comment.id, newVote === "up" ? "upvote" : "none");
+            }}
           >
             <ChevronUp className="h-4 w-4" />
           </Button>
@@ -146,7 +152,11 @@ function CommentCard({
           <Button
             variant={vote === "down" ? "downvote-active" : "ghost"}
             size="icon-sm"
-            onClick={() => setVote(vote === "down" ? null : "down")}
+            onClick={async () => {
+              const newVote = vote === "down" ? null : "down";
+              setVote(newVote);
+              await onVote(comment.id, newVote === "down" ? "downvote" : "none");
+            }}
           >
             <ChevronDown className="h-4 w-4" />
           </Button>
@@ -224,6 +234,7 @@ function CommentCard({
             onReply={onReply}
             onEdit={onEdit}
             onDelete={onDelete}
+            onVote={onVote}
             currentUserId={currentUserId}
           />
         ))}
@@ -241,6 +252,7 @@ export default function PostDetail() {
     fetchComments,
     addComment,
     voteOnPost,
+    voteOnComment,
     savePost: apiSavePost,
     unsavePost: apiUnsavePost,
     editPost,
@@ -481,6 +493,34 @@ export default function PostDetail() {
       if (!res.currentUserVote) setVote(null);
       else if (res.currentUserVote === "upvote") setVote("up");
       else if (res.currentUserVote === "downvote") setVote("down");
+    }
+  };
+
+  const handleVoteComment = async (commentId: string, type: "upvote" | "downvote" | "none") => {
+    if (!user || !token) {
+      toast({
+        title: "Login required",
+        description: "Create an account or log in to vote.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!postId) return;
+    const res = await voteOnComment(postId, commentId, { type }, token);
+    if (res) {
+      // Update the comment in the state
+      const updateComment = (comments: any[]): any[] => {
+        return comments.map(c => {
+          if (c.id === commentId) {
+            return { ...c, votes: res.votes, currentUserVote: res.currentUserVote };
+          }
+          if (c.replies) {
+            return { ...c, replies: updateComment(c.replies) };
+          }
+          return c;
+        });
+      };
+      setComments(updateComment(comments));
     }
   };
 
@@ -785,6 +825,7 @@ export default function PostDetail() {
                     onReply={handleReply}
                     onEdit={handleEditComment}
                     onDelete={handleDeleteComment}
+                    onVote={handleVoteComment}
                     currentUserId={user?.id}
                   />
                 ))

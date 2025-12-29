@@ -90,6 +90,21 @@ router.post("/:postId/vote", requireAuth, async (req, res) => {
   res.json({ ...result.post, currentUserVote });
 });
 
+// Comment Vote
+router.post("/:postId/comments/:commentId/vote", requireAuth, async (req, res) => {
+  const { type } = req.body || {};
+  if (!["upvote", "downvote", "none"].includes(type))
+    return res.status(400).json({ error: "type must be upvote|downvote|none" });
+  const result = await store.castCommentVote({
+    commentId: req.params.commentId,
+    userId: req.user.id,
+    type,
+  });
+  if (!result.ok) return res.status(404).json({ error: "comment not found" });
+  const currentUserVote = type === "none" ? null : type;
+  res.json({ ...result.comment, currentUserVote });
+});
+
 // Save/Unsave
 router.post("/:postId/save", requireAuth, async (req, res) => {
   const ok = await store.savePost({
@@ -112,7 +127,7 @@ router.post("/:postId/unsave", requireAuth, async (req, res) => {
 router.get("/:postId/comments", async (req, res) => {
   const post = await store.getPostById(req.params.postId);
   if (!post) return res.status(404).json({ error: "post not found" });
-  const comments = await store.getComments(req.params.postId);
+  const comments = await store.getComments(req.params.postId, req.user?.id);
   res.json(comments);
 });
 router.post("/:postId/comments", requireAuth, async (req, res) => {

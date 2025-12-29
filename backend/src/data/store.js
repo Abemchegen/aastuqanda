@@ -1,5 +1,6 @@
 const { prisma } = require("../db/prisma");
 const { newId } = require("../utils/ids");
+const bcrypt = require("bcrypt");
 
 // Helpers
 function slugify(name) {
@@ -19,8 +20,9 @@ function isMilestone(n) {
 
 // Users
 async function addUser({ username, email, password }) {
+  const hashedPassword = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { username, email, password },
+    data: { username, email, password: hashedPassword },
   });
   return user;
 }
@@ -39,6 +41,13 @@ async function getUserById(id) {
 // Spaces
 async function addSpace({ name, description, createdBy, image }) {
   const slug = slugify(name);
+  
+  // Check if space with this slug already exists
+  const existingSpace = await getSpaceById(slug);
+  if (existingSpace) {
+    throw new Error("A space with this name already exists. Please choose a different name.");
+  }
+  
   const space = await prisma.space.create({
     data: {
       name,
@@ -111,6 +120,23 @@ async function updateSpaceImage(spaceIdOrSlug, userId, imageUrl) {
   const updated = await prisma.space.update({
     where: { id: space.id },
     data: { image: imageUrl || "" },
+    include: spaceInclude,
+  });
+  return { ok: true, space: shapeSpace(updated) };
+}
+
+async function updateSpaceDescription(spaceIdOrSlug, userId, description) {
+  // Accept either internal id or public slug
+  let space = await getSpaceById(spaceIdOrSlug);
+  if (!space) {
+    space = await getSpaceBySlug(spaceIdOrSlug);
+  }
+  if (!space) return { ok: false, reason: "not-found" };
+  // Ownership check: only creator can update the space description
+  if (space.createdBy !== userId) return { ok: false, reason: "forbidden" };
+  const updated = await prisma.space.update({
+    where: { id: space.id },
+    data: { description: description || "" },
     include: spaceInclude,
   });
   return { ok: true, space: shapeSpace(updated) };
@@ -205,6 +231,7 @@ async function addPost({ title, content, spaceId, authorId }) {
   const updated = await prisma.post.update({
     where: { id: post.id },
     data: { votes: baseVotes + 1 },
+    include: { author: { select: { id: true, username: true } } },
   });
   return updated;
 }
@@ -294,7 +321,7 @@ async function listPosts({
   };
   const items = await prisma.post.findMany({
     where,
-    include: { space: true },
+    include: { space: true, author: { select: { id: true, username: true } } },
     orderBy: sort === "new" ? { createdAt: "desc" } : undefined,
   });
   function score(p) {
@@ -404,6 +431,42 @@ async function castVote({ postId, userId, type }) {
   }
   return { ok: true, post: updated };
 }
+async function castCommentVote({ commentId, userId, type }) {
+  const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+  if (!comment) return { ok: false, reason: "not-found" };
+  const prev = await prisma.commentVote.findUnique({
+    where: { userId_commentId: { userId, commentId } },
+  });
+  let votes = comment.votes || 0;
+  if (prev?.type === "UPVOTE") votes -= 1;
+  else if (prev?.type === "DOWNVOTE") votes += 1;
+
+  if (type === "upvote") {
+    votes += 1;
+    await prisma.commentVote.upsert({
+      where: { userId_commentId: { userId, commentId } },
+      create: { userId, commentId, type: "UPVOTE" },
+      update: { type: "UPVOTE" },
+    });
+  } else if (type === "downvote") {
+    votes -= 1;
+    await prisma.commentVote.upsert({
+      where: { userId_commentId: { userId, commentId } },
+      create: { userId, commentId, type: "DOWNVOTE" },
+      update: { type: "DOWNVOTE" },
+    });
+  } else if (type === "none") {
+    await prisma.commentVote
+      .delete({ where: { userId_commentId: { userId, commentId } } })
+      .catch(() => {});
+  }
+
+  const updated = await prisma.comment.update({
+    where: { id: commentId },
+    data: { votes },
+  });
+  return { ok: true, comment: updated };
+}
 async function savePost({ postId, userId }) {
   await prisma.savedPost.upsert({
     where: { userId_postId: { userId, postId } },
@@ -468,7 +531,11 @@ async function addComment({ postId, authorId, content, parentId }) {
     if (!parent || parent.postId !== postId) return null;
   }
   const comment = await prisma.comment.create({
-    data: { postId, authorId, content, parentId: parentId ?? null },
+    data: { postId, authorId, content, parentId: parentId ?? null, votes: 1 },
+  });
+  // Author upvotes their own comment
+  await prisma.commentVote.create({
+    data: { userId: authorId, commentId: comment.id, type: "UPVOTE" },
   });
   // Notify post author on comment milestones (1,10,100,...), excluding deleted placeholders
   const commentCount = await prisma.comment.count({
@@ -497,12 +564,27 @@ async function updateComment({ postId, commentId, userId, content }) {
   });
   return { ok: true, comment: updated };
 }
-function getComments(postId) {
-  return prisma.comment.findMany({
+async function getComments(postId, userId) {
+  const comments = await prisma.comment.findMany({
     where: { postId },
     include: { author: { select: { id: true, username: true } } },
     orderBy: { createdAt: "desc" },
   });
+  if (!userId) return comments;
+  // Add currentUserVote to each comment
+  const commentIds = comments.map(c => c.id);
+  const votes = await prisma.commentVote.findMany({
+    where: {
+      userId,
+      commentId: { in: commentIds }
+    }
+  });
+  const voteMap = new Map(votes.map(v => [v.commentId, v.type]));
+  return comments.map(comment => ({
+    ...comment,
+    currentUserVote: voteMap.get(comment.id) === "UPVOTE" ? "upvote" :
+                     voteMap.get(comment.id) === "DOWNVOTE" ? "downvote" : null
+  }));
 }
 async function deleteComment({ postId, commentId, userId }) {
   const comment = await prisma.comment.findUnique({ where: { id: commentId } });
@@ -632,6 +714,39 @@ async function verifyEmailByToken(token) {
   });
   return user;
 }
+
+// Password reset
+async function createResetToken(userId) {
+  const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1h
+  const token = newId();
+  await prisma.resetToken.create({ data: { token, userId, expiresAt } });
+  return token;
+}
+
+async function getUserIdByResetToken(token) {
+  const record = await prisma.resetToken.findUnique({
+    where: { token },
+  });
+  if (!record) return null;
+  if (record.expiresAt < new Date()) {
+    await prisma.resetToken.delete({ where: { token } }).catch(() => {});
+    return null;
+  }
+  return record.userId;
+}
+
+async function resetPassword(token, newPassword) {
+  const userId = await getUserIdByResetToken(token);
+  if (!userId) return null;
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashedPassword },
+  });
+  await prisma.resetToken.deleteMany({ where: { userId } });
+  return user;
+}
+
 async function getUserMembershipSpaceIds(userId) {
   const memberships = await prisma.spaceMembership.findMany({
     where: { userId },
@@ -656,6 +771,7 @@ module.exports = {
   updateSpaceImage,
   getUserSpaces,
   getUserMembershipSpaceIds,
+  updateSpaceDescription,
   // posts
   addPost,
   updatePost,
@@ -663,6 +779,7 @@ module.exports = {
   deletePost,
   listPosts,
   castVote,
+  castCommentVote,
   savePost,
   unsavePost,
   getUserPosts,
@@ -691,4 +808,7 @@ module.exports = {
   createVerificationToken,
   verifyEmailByToken,
   reissueVerificationToken,
+  createResetToken,
+  getUserIdByResetToken,
+  resetPassword,
 };

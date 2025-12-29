@@ -2,7 +2,8 @@ const express = require("express");
 const { prisma } = require("../db/prisma");
 const store = require("../data/store");
 const { issueAccessToken, requireAuth } = require("../middleware/auth");
-const { sendVerificationEmail } = require("../services/mailer");
+const { sendVerificationEmail, sendResetEmail } = require("../services/mailer");
+const bcrypt = require("bcrypt");
 
 const router = express.Router();
 
@@ -46,34 +47,34 @@ router.post("/register", async (req, res) => {
 });
 
 // Login (email + password)
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   const { email, password } = req.body || {};
-  Promise.resolve(store.getUserByEmail(email))
-    .then((user) => {
-      if (!user || user.password !== password)
-        return res.status(401).json({ error: "invalid credentials" });
-      if (!user.isVerified)
-        return res.status(403).json({
-          error: "email_not_verified",
-          message: "Please verify your email before logging in.",
-        });
-      const accessToken = issueAccessToken(user);
-      return store.createRefreshToken(user.id).then((refreshToken) =>
-        res.json({
-          accessToken,
-          refreshToken,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            avatar: user.avatar,
-          },
-        })
-      );
-    })
-    .catch((e) =>
-      res.status(500).json({ error: "server", details: String(e) })
-    );
+  try {
+    const user = await store.getUserByEmail(email);
+    if (!user) return res.status(401).json({ error: "invalid credentials" });
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword)
+      return res.status(401).json({ error: "invalid credentials" });
+    if (!user.isVerified)
+      return res.status(403).json({
+        error: "email_not_verified",
+        message: "Please verify your email before logging in.",
+      });
+    const accessToken = issueAccessToken(user);
+    const refreshToken = await store.createRefreshToken(user.id);
+    return res.json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+      },
+    });
+  } catch (e) {
+    return res.status(500).json({ error: "server", details: String(e) });
+  }
 });
 
 // Refresh token
@@ -174,6 +175,74 @@ router.post("/resend-verification", async (req, res) => {
     emailSent: true,
     message: "Verification email re-sent.",
   });
+});
+
+// Forgot password
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: "email required" });
+
+  console.log("Forgot password request for email:", email);
+
+  const user = await store.getUserByEmail(email);
+  if (!user) {
+    // Do not leak existence; respond success
+    console.log("User not found, but responding success");
+    return res.json({
+      ok: true,
+      message: "If that email is registered, a reset link has been sent.",
+    });
+  }
+
+  console.log("User found, creating reset token for user:", user.id);
+  const resetToken = await store.createResetToken(user.id);
+  console.log("Reset token created:", resetToken);
+
+  const sendResult = await sendResetEmail({
+    to: user.email,
+    token: resetToken,
+    username: user.username,
+  });
+
+  console.log("Send result:", sendResult);
+
+  if (!sendResult?.sent) {
+    console.log("Email not sent, reason:", sendResult?.reason);
+    return res.json({
+      ok: true,
+      emailSent: false,
+      message: "Could not send reset email right now. Please try again.",
+    });
+  }
+
+  console.log("Email sent successfully");
+  return res.json({
+    ok: true,
+    emailSent: true,
+    message: "Reset link sent to your email.",
+  });
+});
+
+// Reset password
+router.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token || !newPassword)
+    return res.status(400).json({ error: "token and newPassword required" });
+
+  const user = await store.resetPassword(token, newPassword);
+  if (!user) return res.status(400).json({ error: "invalid or expired token" });
+
+  return res.json({ ok: true, message: "Password reset successfully." });
+});
+
+// Reset password (GET for emailed link)
+router.get("/reset-password", async (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(400).json({ error: "token required" });
+  const userId = await store.getUserIdByResetToken(token);
+  if (!userId) return res.status(400).json({ error: "invalid or expired token" });
+  // For GET, just confirm the token is valid
+  return res.json({ ok: true, message: "Token is valid. Proceed to reset password." });
 });
 
 // Me

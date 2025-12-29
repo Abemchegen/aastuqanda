@@ -106,6 +106,21 @@ router.put("/:spaceId/image", requireAuth, async (req, res) => {
   res.json(result.space);
 });
 
+// Update space description (owner only)
+router.put("/:spaceId/description", requireAuth, async (req, res) => {
+  const { description } = req.body || {};
+  const result = await store.updateSpaceDescription(
+    req.params.spaceId,
+    req.user.id,
+    description || ""
+  );
+  if (!result.ok)
+    return res
+      .status(result.reason === "forbidden" ? 403 : 404)
+      .json({ error: result.reason });
+  res.json(result.space);
+});
+
 // Delete space image (owner only)
 router.delete("/:spaceId/image", requireAuth, async (req, res) => {
   const result = await store.updateSpaceImage(

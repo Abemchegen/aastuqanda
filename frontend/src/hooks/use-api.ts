@@ -16,6 +16,7 @@ import {
   createPost,
   deletePost,
   votePost,
+  voteComment,
   savePost,
   unsavePost,
   getComments,
@@ -37,6 +38,7 @@ import {
   uploadSpaceImage,
   updateSpaceImage,
   deleteSpaceImage,
+  updateSpaceDescription,
 } from  "../api/api"
 
 export const useAPI = () => {
@@ -74,6 +76,8 @@ export const useAPI = () => {
     uploadSpaceImage: (file: File, token: string) => call(uploadSpaceImage, file, token),
     setSpaceImage: (spaceId: string, image: string, token: string) =>
       call(updateSpaceImage, spaceId, image, token),
+    setSpaceDescription: (spaceId: string, description: string, token: string) =>
+      call(updateSpaceDescription, spaceId, description, token),
     removeSpaceImage: (spaceId: string, token: string) =>
       call(deleteSpaceImage, spaceId, token),
     joinSpace: (id: string, token: string) => call(joinSpace, id, token),
@@ -102,6 +106,12 @@ export const useAPI = () => {
       data: { type: "upvote" | "downvote" | "none" },
       token: string
     ) => call(votePost, id, data, token),
+    voteOnComment: (
+      postId: string,
+      commentId: string,
+      data: { type: "upvote" | "downvote" | "none" },
+      token: string
+    ) => call(voteComment, postId, commentId, data, token),
     savePost: (id: string, token: string) => call(savePost, id, token),
     unsavePost: (id: string, token: string) => call(unsavePost, id, token),
 

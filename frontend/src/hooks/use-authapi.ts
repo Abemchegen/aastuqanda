@@ -12,6 +12,8 @@ import {
   resendVerificationEmail,
   verifyEmail as verifyEmailApi,
   deleteAccount as deleteAccountApi,
+  forgotPassword as forgotPasswordApi,
+  resetPassword as resetPasswordApi,
 } from "../api/authapi"
 
 export const useAuthAPI = () => {
@@ -113,6 +115,42 @@ export const useAuthAPI = () => {
     }
   };
 
+  const forgotPassword = async (email: string) => {
+    try {
+      setLoading(true);
+      const res = await forgotPasswordApi(email);
+      return res;
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Request Failed",
+        description: err.response?.data?.error || err.message || "Please try again.",
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    try {
+      setLoading(true);
+      const res = await resetPasswordApi(token, newPassword);
+      return res;
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Reset Failed",
+        description: err.response?.data?.error || err.message || "Please try again.",
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const verifyEmail = useCallback(async (token: string) => {
     try {
       setLoading(true);
@@ -153,6 +191,8 @@ export const useAuthAPI = () => {
     getCurrentUser,
     logout,
     resendVerification,
+    forgotPassword,
+    resetPassword,
     verifyEmail,
     deleteAccount,
   };

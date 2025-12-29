@@ -11,6 +11,7 @@ import PostDetail from "./pages/PostDetail";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import Explore from "./pages/Explore";
 import SpaceDetail from "./pages/SpaceDetail";
 import SpaceAdmin from "./pages/SpaceAdmin";
@@ -41,6 +42,7 @@ const App = () => (
               {/* Non-layout routes (auth, 404) */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

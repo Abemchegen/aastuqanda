@@ -112,9 +112,9 @@ export function PostCard({ post, onClick }: PostCardProps) {
       onClick={handleClick}
     >
       <CardContent className="p-4">
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           {/* Vote buttons */}
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-3 mr-3">
             <Button
               variant={vote === "up" ? "upvote-active" : "upvote"}
               size="icon-sm"
@@ -195,12 +195,18 @@ export function PostCard({ post, onClick }: PostCardProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 max-h-24 overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1.5">
               <span className="font-medium text-space-prefix">
                 {post.spaceSlug}
               </span>
+              {post.author?.username && (
+                <>
+                  <span>•</span>
+                  <span>by {post.author.username}</span>
+                </>
+              )}
               <span>•</span>
               <span>{formatTimeAgo(post.createdAt)}</span>
               {post.isFaq && (
@@ -219,15 +225,17 @@ export function PostCard({ post, onClick }: PostCardProps) {
             </h3>
 
             {/* Preview with optional image thumbnail */}
-            {/* <p className="text-sm text-muted-foreground line-clamp-2 flex-1 min-w-0">
+            {previewText && (
+              <p className="text-sm text-muted-foreground line-clamp-1 flex-1 min-w-0 mb-1">
                 {previewText}
-              </p> */}
+              </p>
+            )}
             {previewImage && (
               <div className="shrink-0">
                 <img
                   src={previewImage}
                   alt="post image"
-                  className="rounded-md w-28 h-20 object-cover border"
+                  className="rounded-md w-20 h-16 object-cover border"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/post/${post.id}`);

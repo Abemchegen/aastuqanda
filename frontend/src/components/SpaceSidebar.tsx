@@ -113,7 +113,15 @@ export function SpaceSidebar({
         navigate(`/space/${res.slug}`);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.error || "Could not create space.";
+      let message = err?.response?.data?.error || "Could not create space.";
+      
+      // Check for duplicate space name error
+      if (message.includes("Unique constraint failed") || 
+          message.includes("slug") || 
+          message.toLowerCase().includes("already exists")) {
+        message = "A space with this name already exists. Please choose a different name.";
+      }
+      
       toast({
         title: "Create failed",
         description: message,
@@ -207,7 +215,7 @@ export function SpaceSidebar({
           <div className="mx-4 h-px bg-sidebar-border" />
 
           {/* Spaces */}
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-hidden p-4">
             <h3 className="mb-3 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Spaces
             </h3>
@@ -221,36 +229,38 @@ export function SpaceSidebar({
               Create space
             </Button>
 
-            <nav className="space-y-1">
-              {spaces.map((space) => (
-                <Link
-                  key={space.id}
-                  to={`/space/${space.slug}`}
-                  onClick={onClose}
-                >
-                  <Button
-                    variant={
-                      selectedSpace === space.slug ? "secondary" : "ghost"
-                    }
-                    className={cn(
-                      "w-full justify-start gap-3",
-                      selectedSpace === space.slug &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}
+            <div className="max-h-96 overflow-y-auto">
+              <nav className="space-y-1">
+                {spaces.map((space) => (
+                  <Link
+                    key={space.id}
+                    to={`/space/${space.slug}`}
+                    onClick={onClose}
                   >
-                    <SpaceLogo
-                      image={space.image}
-                      alt={`${space.slug} logo`}
-                      className="h-6 w-6"
-                      variant="sidebar"
-                    />
-                    <span className="flex-1 truncate text-left">
-                      {space.slug}
-                    </span>
-                  </Button>
-                </Link>
-              ))}
-            </nav>
+                    <Button
+                      variant={
+                        selectedSpace === space.slug ? "secondary" : "ghost"
+                      }
+                      className={cn(
+                        "w-full justify-start gap-3",
+                        selectedSpace === space.slug &&
+                          "bg-sidebar-accent text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <SpaceLogo
+                        image={space.image}
+                        alt={`${space.slug} logo`}
+                        className="h-6 w-6"
+                        variant="sidebar"
+                      />
+                      <span className="flex-1 truncate text-left">
+                        {space.slug}
+                      </span>
+                    </Button>
+                  </Link>
+                ))}
+              </nav>
+            </div>
           </div>
 
           {/* Footer */}

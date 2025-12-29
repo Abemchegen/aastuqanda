@@ -36,6 +36,14 @@ interface AuthContextType {
     message?: string;
     reason?: string;
   }>;
+  forgotPassword: (email: string) => Promise<{
+    ok: boolean;
+    emailSent?: boolean;
+    message?: string;
+  }>;
+  resetPassword: (token: string, newPassword: string) => Promise<{
+    ok: boolean;
+  }>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -52,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getCurrentUser,
     logout: apiLogout,
     resendVerification: apiResendVerification,
+    forgotPassword: apiForgotPassword,
+    resetPassword: apiResetPassword,
     refresh,
     deleteAccount: apiDeleteAccount,
   } = useAuthAPI();
@@ -256,6 +266,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const forgotPassword = async (
+    email: string
+  ): Promise<{
+    ok: boolean;
+    emailSent?: boolean;
+    message?: string;
+  }> => {
+    try {
+      const trimmed = email.trim();
+      if (!trimmed) {
+        return {
+          ok: false,
+          emailSent: false,
+          message: "Email is required to request password reset.",
+        };
+      }
+      const res = await apiForgotPassword(trimmed);
+      return {
+        ok: Boolean(res?.ok),
+        emailSent: res?.emailSent,
+        message: res?.message,
+      };
+    } catch (err) {
+      return { ok: false, emailSent: false, message: "Request failed." };
+    }
+  };
+
+  const resetPassword = async (
+    token: string,
+    newPassword: string
+  ): Promise<{
+    ok: boolean;
+  }> => {
+    try {
+      const res = await apiResetPassword(token, newPassword);
+      return {
+        ok: Boolean(res?.ok),
+      };
+    } catch (err) {
+      return { ok: false };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -267,6 +320,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateProfile,
         resendVerification,
+        forgotPassword,
+        resetPassword,
         deleteAccount,
       }}
     >

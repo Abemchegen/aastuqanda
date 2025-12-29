@@ -4,7 +4,7 @@ import { useAPI } from "@/hooks/use-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, Trash2 } from "lucide-react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Edit, Check, X as CancelIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -40,6 +40,7 @@ export default function SpaceAdmin() {
     uploadSpaceImage,
     setSpaceImage,
     removeSpaceImage,
+    setSpaceDescription,
   } = useAPI();
 
   const token =
@@ -57,6 +58,8 @@ export default function SpaceAdmin() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState("");
 
   useEffect(() => {
     if (!spaceSlug) return;
@@ -69,6 +72,7 @@ export default function SpaceAdmin() {
       }
       setSpace(s);
       setIsOwner(Boolean(user && s?.creator?.id === user.id));
+      setDescriptionValue(s.description || "");
       const list = await fetchPostsPaged({
         spaceSlug,
         sort: "new",
@@ -158,6 +162,29 @@ export default function SpaceAdmin() {
     }
   };
 
+  const handleSaveDescription = async () => {
+    if (!token || !space) return;
+    try {
+      const updated = await setSpaceDescription(
+        space.id,
+        descriptionValue,
+        token
+      );
+      if (updated) {
+        setSpace(updated);
+        setEditingDescription(false);
+        toast({ title: "Description updated" });
+      } else {
+        toast({
+          title: "Could not update description",
+          variant: "destructive",
+        });
+      }
+    } catch (_) {
+      toast({ title: "Error updating description", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -218,15 +245,22 @@ export default function SpaceAdmin() {
             <h1 className="text-2xl font-bold text-foreground break-words">
               Manage {space.slug}
             </h1>
-            <p className="text-muted-foreground break-words whitespace-pre-wrap">
-              {space.description}
-            </p>
           </div>
+
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-muted-foreground">
+            <span className="flex  items-center gap-1 text-muted-foreground whitespace-nowrap">
               <Users className="h-4 w-4" />
               {space.memberCount?.toLocaleString() || 0} members
             </span>
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setEditingDescription(true)}
+              className="mt-1 p-3 h-auto text-xs"
+            >
+              <Edit className="h-3 w-3 mr-1" />
+              Edit Description
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive">
@@ -250,6 +284,50 @@ export default function SpaceAdmin() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          {" "}
+          <div className="flex items-start gap-2">
+            {editingDescription ? (
+              <div className="flex-1 space-y-2">
+                <textarea
+                  value={descriptionValue}
+                  onChange={(e) => setDescriptionValue(e.target.value)}
+                  className="w-full p-2 border rounded resize-none"
+                  rows={3}
+                  placeholder="Enter space description..."
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveDescription}
+                    disabled={!token}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingDescription(false);
+                      setDescriptionValue(space.description || "");
+                    }}
+                  >
+                    <CancelIcon className="h-4 w-4 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <p className="text-muted-foreground break-words whitespace-pre-wrap">
+                  {space.description || "No description"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

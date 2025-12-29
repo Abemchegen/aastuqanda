@@ -17,6 +17,7 @@ export interface Post {
   spaceSlug: string;
   spaceName: string;
   authorId: string;
+  author?: { id: string; username: string };
   votes: number;
   commentCount: number;
   createdAt: Date;
@@ -32,6 +33,7 @@ export interface Comment {
   authorId: string;
   author?: { id: string; username: string };
   votes?: number;
+  currentUserVote?: "upvote" | "downvote" | null;
   createdAt: Date;
   replies?: Comment[];
 }

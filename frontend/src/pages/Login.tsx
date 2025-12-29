@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, user, resendVerification } = useAuth();
+  const { login, user, resendVerification, forgotPassword } = useAuth();
   const { toast } = useToast();
 
   const [email, setEmail] = useState("");
@@ -24,6 +24,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
 
   // Redirect if already logged in
   if (user) {
@@ -97,6 +98,37 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      toast({
+        title: "Add your email first",
+        description:
+          "Enter the email you registered with to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsForgotPasswordLoading(true);
+    try {
+      const res = await forgotPassword(trimmedEmail);
+      if (res?.ok && res.emailSent !== false) {
+        toast({
+          title: "Reset email sent",
+          description: "Check your inbox (and spam) for the reset link.",
+        });
+      } else {
+        toast({
+          title: "Could not send reset email",
+          description: res?.message || "Please try again in a moment.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -160,6 +192,19 @@ export default function Login() {
                     ) : (
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     )}
+                  </Button>
+                </div>
+                <div className="text-right">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-sm"
+                    onClick={handleForgotPassword}
+                    disabled={isForgotPasswordLoading}
+                  >
+                    {isForgotPasswordLoading
+                      ? "Sending..."
+                      : "Forgot Password?"}
                   </Button>
                 </div>
               </div>

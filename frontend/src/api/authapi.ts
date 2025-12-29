@@ -64,6 +64,25 @@ export const resendVerificationEmail = async (email: string) => {
   return response.data;
 };
 
+// Forgot password
+export const forgotPassword = async (email: string) => {
+  const response = await axios.post(`${API_BASE}/auth/forgot-password`, {
+    email,
+  });
+  console.log("forgotPassword response", response.data);
+  return response.data;
+};
+
+// Reset password
+export const resetPassword = async (token: string, newPassword: string) => {
+  const response = await axios.post(`${API_BASE}/auth/reset-password`, {
+    token,
+    newPassword,
+  });
+  console.log("resetPassword response", response.data);
+  return response.data;
+};
+
 // Verify email using token
 export const verifyEmail = async (token: string) => {
   const response = await axios.get(`${API_BASE}/auth/verify-email`, {

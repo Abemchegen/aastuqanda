@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { SpaceLogo } from "@/components/SpaceLogo";
 import { PostCard } from "@/components/PostCard";
 import { FeedFilters } from "@/components/FeedFilters";
+import { CreatePostDialog } from "@/components/CreatePostDialog";
 import { useAPI } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { Plus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,6 +34,8 @@ const Index = () => {
   const [limit] = useState(10);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const { user } = useAuth();
 
   // Initial load and reload on filter/sort changes
   useEffect(() => {

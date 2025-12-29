@@ -64,6 +64,20 @@ export const updateSpaceImage = async (
   return response.data;
 };
 
+export const updateSpaceDescription = async (
+  spaceId: string,
+  description: string,
+  token: string
+) => {
+  const response = await axios.put(
+    `${API_BASE}/spaces/${spaceId}/description`,
+    { description },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  console.log("updateSpaceDescription response", response.data);
+  return response.data;
+};
+
 export const deleteSpaceImage = async (spaceId: string, token: string) => {
   const response = await axios.delete(`${API_BASE}/spaces/${spaceId}/image`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -181,6 +195,19 @@ export const votePost = async (
     headers: { Authorization: `Bearer ${token}` },
   });
   console.log("votePost response", response.data);
+  return response.data;
+};
+
+export const voteComment = async (
+  postId: string,
+  commentId: string,
+  data: { type: "upvote" | "downvote" | "none" },
+  token: string
+) => {
+  const response = await axios.post(`${API_BASE}/posts/${postId}/comments/${commentId}/vote`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  console.log("voteComment response", response.data);
   return response.data;
 };
 
