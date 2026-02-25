@@ -24,6 +24,7 @@
 ## 🛠️ Tech Stack
 
 **Frontend**
+
 - [Vite](https://vitejs.dev/) - Fast build tool
 - [React](https://reactjs.org/) - UI Library
 - [TypeScript](https://www.typescriptlang.org/) - Typed JavaScript
@@ -31,10 +32,33 @@
 - [shadcn/ui](https://ui.shadcn.com/) - Reusable components
 
 **Backend**
+
 - [Node.js](https://nodejs.org/) - Runtime environment
 - [Express](https://expressjs.com/) - Web framework
 - [Prisma](https://www.prisma.io/) - ORM
 - [PostgreSQL](https://www.postgresql.org/) - Database
+
+## 📸 Screenshots
+
+Here are some screenshots of the AASTU Q&A frontend:
+
+<p align="center">
+   <img src="frontend/src/assets/Screenshot1.png" alt="Screenshot 1" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot2.png" alt="Screenshot 2" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot3.png" alt="Screenshot 3" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot4.png" alt="Screenshot 4" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot5.png" alt="Screenshot 5" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot6.png" alt="Screenshot 6" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot7.png" alt="Screenshot 7" width="600" />
+   <br/>
+   <img src="frontend/src/assets/Screenshot8.png" alt="Screenshot 8" width="600" />
+</p>
 
 ## 📂 Repository Structure
 
@@ -56,12 +80,14 @@ Follow these steps to set up the project locally.
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/Abemchegen/aastuqanda.git
    cd aastuqanda
    ```
 
 2. **Backend Setup**
+
    ```bash
    cd backend
    npm install
@@ -88,6 +114,7 @@ The frontend should now be running at default Vite port (usually `http://localho
 Check `.env.example` in both `backend` and `frontend` directories for the required variables.
 
 **Backend (.env)**
+
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
 JWT_SECRET="your-super-secret-key"
@@ -103,4 +130,5 @@ We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
 
 ---
+
 Built with ❤️ by the AASTU Q&A Team.
